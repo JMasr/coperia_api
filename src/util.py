@@ -40,14 +40,14 @@ class Util:
 
     def basic_request(self, r_type: str, url: str, header=None, payload: dict = None,
                       files: dict = None) -> json.JSONDecoder:
-        """ Constructs and sends a :class:`Request <Request>` with the parameters r_type, url, header, payload and file.
-
-        :param r_type: Verb of the API request (GET, PUT, POST, DELETE).
-        :param url: Endpoint of the API request.
-        :param header: HTTP headers of the API request as a python dictionary.
-        :param payload: Body of the API request as a python dictionary.
-        :param files: Multipart encoding upload of the API request.
-        :return: A JSONDecoder with the data requested.
+        """
+        Constructs and sends a :class:`Request <Request>` with the parameters r_type, url, header, payload and file
+        :param r_type: Verb of the API request (GET, PUT, POST, DELETE)
+        :param url: Endpoint of the API request
+        :param header: HTTP headers of the API request as a python dictionary
+        :param payload: Body of the API request as a python dictionary
+        :param files: Multipart encoding upload of the API request
+        :return: A JSONDecoder with the data requested
 
         Usage::
             >> h = {'Authorization': 'Bearer ' + self.access_token, 'Accept': "multipart/form-data"}
@@ -65,4 +65,3 @@ class Util:
         if self.connection_is_success(r):
             response_in_json = json.loads(r.text)
             return response_in_json
-
