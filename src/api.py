@@ -2,7 +2,7 @@ from src.config import Config
 
 
 # An CORILGA API class
-class CORILGA_API:
+class CorilgaApi:
 
     def __init__(self, env_path):
         config: Config = Config(env_path)
