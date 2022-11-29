@@ -1,67 +1,89 @@
 import json
+
+import numpy as np
 import requests
-from src.data import Response
+import torch
+import torchaudio
+from spafe.features.bfcc import bfcc
+from spafe.features.cqcc import cqcc
+from spafe.features.gfcc import gfcc
+from spafe.features.lfcc import lfcc
+from spafe.features.lpc import lpc
+from spafe.features.lpc import lpcc
+from spafe.features.mfcc import mfcc, imfcc
+from spafe.features.msrcc import msrcc
+from spafe.features.ngcc import ngcc
+from spafe.features.pncc import pncc
+from spafe.features.psrcc import psrcc
+from spafe.features.rplp import plp, rplp
+
+from src.config import Config
 
 
-class Util:
+class FeatureExtractor:
+    """ Class for feature extraction
+    args: input arguments dictionary
+    Mandatory arguments: resampling_rate, feature_type, window_size, hop_length
+    For MFCC: f_max, n_mels, n_mfcc
+    For MelSpec/logMelSpec: f_max, n_mels
+    Optional arguments: compute_deltas, compute_delta_deltas
+    """
 
-    @staticmethod
-    def write_json(response: dict, path_to_write: str = "data/json_test.json"):
-        try:
-            with open(f"{path_to_write}", "w") as outfile:
-                json_str = json.dumps(response, indent=len(response))
-                outfile.write(json_str)
-                return True
-        except IOError:
-            raise "Error writing JSON"
+    def __init__(self, feature_type: str = None):
+        self.conf = Config('.env.feats')
+        self.feature_transformers = {'mfcc': mfcc,
+                                     'imfcc': imfcc,
+                                     'bfcc': bfcc,
+                                     'cqcc': cqcc,
+                                     'gfcc': gfcc,
+                                     'lfcc': lfcc,
+                                     'lpc': lpc,
+                                     'lpcc': lpcc,
+                                     'msrcc': msrcc,
+                                     'ngcc': ngcc,
+                                     'pncc': pncc,
+                                     'psrcc': psrcc,
+                                     'plp': plp,
+                                     'rplp': rplp}
 
-    @staticmethod
-    def read_json(path_to_json: str) -> dict:
-        try:
-            with open(path_to_json, 'r') as file:
-                json_data = json.load(file)
-        except IOError:
-            raise "Error read JSON"
+        if feature_type is None:
+            self.feat_type = self.conf.get_key('feature_type')
 
-        return json_data
+    def do_feature_extraction(self, s: torch.Tensor, fs: int):
+        """ Feature preparation
+        Steps:
+        1. Apply feature extraction to waveform
+        2. Convert amplitude to dB if required
+        3. Append delta and delta-delta features
+        """
+        if self.feat_type.lower() in self.feature_transformers:
+            # Spafe feature selected
+            F = self.feature_transformers[self.feat_type](s, fs,
+                                                          num_ceps=int(self.config.get('num_ceps')),
+                                                          low_freq=int(self.config.get('low_freq')),
+                                                          high_freq=int(fs / 2),
+                                                          normalize=self.config.get('normalize'),
+                                                          pre_emph=self.config.get('pre_emph'),
+                                                          pre_emph_coeff=float(self.config.get('pre_emph_coeff')),
+                                                          win_len=float(self.config.get('win_len')),
+                                                          win_hop=float(self.config.get('win_hop')),
+                                                          win_type=self.config.get('win_type'),
+                                                          nfilts=int(self.config.get('nfilts')),
+                                                          nfft=int(self.config.get('nfft')),
+                                                          lifter=float(self.config.get('lifter')),
+                                                          use_energy=self.config.get('use_energy') == 'True')
+            F = np.nan_to_num(F)
+            F = torch.from_numpy(F).T
 
-    @staticmethod
-    def response_to_object(response: dict) -> Response:
-        return Response(**response)
+            if self.conf('compute_deltas') == 'True':
+                FD = torchaudio.functional.compute_deltas(F)
+                F = torch.cat((F, FD), dim=0)
 
-    @staticmethod
-    def connection_is_success(response: requests.request):
+            if self.conf('compute_delta_deltas') == 'True':
+                FDD = torchaudio.functional.compute_deltas(FD)
+                F = torch.cat((F, FDD), dim=0)
 
-        if response.status_code == 200:
-            return True
+            return F.T
+
         else:
-            raise ConnectionError(f"Status code: {response.status_code}.\n"
-                                  f"{response.text}")
-
-    def basic_request(self, r_type: str, url: str, header=None, payload: dict = None,
-                      files: dict = None) -> json.JSONDecoder:
-        """
-        Constructs and sends a :class:`Request <Request>` with the parameters r_type, url, header, payload and file
-        :param r_type: Verb of the API request (GET, PUT, POST, DELETE)
-        :param url: Endpoint of the API request
-        :param header: HTTP headers of the API request as a python dictionary
-        :param payload: Body of the API request as a python dictionary
-        :param files: Multipart encoding upload of the API request
-        :return: A JSONDecoder with the data requested
-
-        Usage::
-            >> h = {'Authorization': 'Bearer ' + self.access_token, 'Accept': "multipart/form-data"}
-            >> p = {'id': 'asdfasxcvasdf'}
-            >> document = {'file': open(document_path, 'rb')}
-            >> response = basic_request('PUT', "https://url_to_api_request", headers=h, data=p, files=document)
-        """
-
-        header = {} if header is None else header
-        payload = {} if payload is None else payload
-        files = {} if files is None else files
-
-        r = requests.request(r_type, url, headers=header, data=payload, files=files)
-
-        if self.connection_is_success(r):
-            response_in_json = json.loads(r.text)
-            return response_in_json
+            raise ValueError('Feature type not implemented')
