@@ -15,14 +15,14 @@ class Config:
             with io.open(path) as stream:
                 env_variables = stream.readlines()
         except IOError:
-            print(f"Error opening {path}")
+            raise IOError(f"Error opening {path}")
 
         for variable in env_variables:
             parts = variable.split('=')
-            self.env[parts[0]] = parts[1].strip()
+            self.env[parts[0].upper()] = parts[1].strip()
 
-    def get_key(self, variable) -> str:
-        return self.env[variable]
+    def get_key(self, variable: str) -> str:
+        return self.env[variable.upper()]
 
 
 config = Config()
