@@ -2,37 +2,30 @@ import base64
 import tempfile
 from datetime import datetime
 
+import numpy as np
 import torch
 import torchaudio
-from spafe.features.bfcc import bfcc
 
 from fhir.resources.observation import Observation
 from fhir.resources.patient import Patient
-from spafe.features.cqcc import cqcc
 
-from src.config import config
-
-
-class Response:
-    def __init__(self, **entries):
-        self.__dict__.update(entries)
+from src.util import FeatureExtractor
+from src.api import CorilgaApi
 
 
-class CoperiaAudio:
-    def __init__(self, observation: Observation, resample_rate: int = 16000):
-        self.id = observation.id
-        self.status = observation.status
-        self.extension = observation.contained[0].content.contentType.split('/')[-1]
+class Audio:
+    def __init__(self, observation: Observation, r_fs: int = 16000):
+        # Audio section
+        self.audio_id = observation.id
         self.duration = float(observation.contained[0].duration)
-
-        self.type = observation.code.text.lower().replace(' ', '_')
         self.type_code = observation.code.coding[0].code
 
         self.data_base64 = observation.contained[0].content.data
 
-        self.wave_form, self.sample_rate = self._load_audio()
-        self.resample_rate = resample_rate
-        self.resample_wave_form = self._resample_audio()
+        self.wave_form, self.sample_rate # = self._load_audio()
+        self.resample_wave_form, self.resample_rate # = self._resample_audio(self.wave_form, self.sample_rate, r_fs)
+
+        self.patient = Patient(observation)
 
     def __str__(self):
         return f'ID: {self.id}\n' \
@@ -43,117 +36,132 @@ class CoperiaAudio:
     def __len__(self):
         return self.duration
 
+    @staticmethod
+    def compute_SAD(sig, fs, threshold=0.0001, sad_start_end_sil_length=100, sad_margin_length=50):
+        """ Compute threshold based sound activity """
+
+        if sig.shape[0] > 1:
+            sig = sig.mean(dim=0).unsqueeze(0)
+        sig = sig / torch.max(torch.abs(sig))
+        sig = sig / torch.max(torch.abs(sig))
+
+        # Leading/Trailing margin
+        sad_start_end_sil_length = int(sad_start_end_sil_length * 1e-3 * fs)
+        # Margin around active samples
+        sad_margin_length = int(sad_margin_length * 1e-3 * fs)
+
+        sample_activity = np.zeros(sig.shape)
+        sample_activity[np.power(sig, 2) > threshold] = 1
+        sad = np.zeros(sig.shape)
+        for i in range(sample_activity.shape[1]):
+            if sample_activity[0, i] == 1: sad[0, i - sad_margin_length:i + sad_margin_length] = 1
+        sad[0, 0:sad_start_end_sil_length] = 0
+        sad[0, -sad_start_end_sil_length:] = 0
+        return sad
+
     def _load_audio(self):
         decode64_data = base64.b64decode(self.data_base64)
-
         with tempfile.NamedTemporaryFile(suffix='.wav') as wav_file:
             wav_file.write(decode64_data)
-            return torchaudio.load(wav_file.name)
+            s, fs = torchaudio.load(wav_file.name)
 
-    def _resample_audio(self):
-        return torchaudio.functional.resample(self.wave_form, self.resample_rate, self.resample_rate)
-
-
-class Feats:
-    def __init__(self, audio: CoperiaAudio):
-        sig, fs = audio.resample_wave_form, audio.resample_rate
-        self.mfcc = self.make_mfcc(sig, fs)
-        self.bfcc = self.make_bfcc(sig, fs)
-        self.cqcc = self.make_cqcc(sig, fs)
+        sad = self.compute_SAD(s.numpy(), self.fs)
+        s = s[np.where(sad == 1)]
+        return s, fs
 
     @staticmethod
-    def make_mfcc(wave_form: torch.Tensor = None, sample_rate: int = None):
-        """
-        Make MFCC from a waveform
-        :param wave_form:  Pytorch Tensor with the waveform
-        :param sample_rate: int with the sample rate of the waveform
-        :return: MFCC
-        """
-        arg = {"n_fft": int(config.get_key('N_FFT')),
-               "hop_length": int(config.get_key('HOP_LENGTH')),
-               "n_mels": int(config.get_key('N_MELS')),
-               }
+    def _resample_audio(audio, sample_rate, resample_rate):
+        return torchaudio.functional.resample(audio, orig_freq=sample_rate, new_freq=resample_rate), resample_rate
 
-        transform = torchaudio.transforms.MFCC(sample_rate=sample_rate, n_mfcc=int(config.get_key('N_MFCC')),
-                                               log_mels=bool(config.get_key('LOG_MELS')), melkwargs=arg)
-        return transform(wave_form)
 
-    @staticmethod
-    def make_bfcc(wave_form: torch.Tensor = None, sample_rate: int = None):
-        bfccs = bfcc(wave_form, fs=sample_rate,
-                     pre_emph=1,
-                     pre_emph_coeff=0.97,
-                     win_len=0.030,
-                     win_hop=0.015,
-                     win_type="hamming",
-                     nfilts=128,
-                     nfft=2048,
-                     low_freq=0,
-                     high_freq=sample_rate/2,
-                     normalize="mvn")
+class Patient:
+    def __init__(self, observation: Observation):
 
-        return torch.from_numpy(bfccs)
+        self.id: str = None
+        self.age: int = None
+        self.gender: str = None
+
+        self.covid: bool = None
+        self.long_covid: bool = None
+
+        self._get_info_from_observation(observation)
 
     @staticmethod
-    def make_cqcc(wave_form: torch.Tensor = None, sample_rate: int = None):
-        cqccs = cqcc(wave_form, fs=sample_rate,
-                     pre_emph=1,
-                     pre_emph_coeff=0.97,
-                     win_len=0.030,
-                     win_hop=0.015,
-                     win_type="hamming",
-                     nfft=2048,
-                     low_freq=0,
-                     high_freq=sample_rate/2,
-                     normalize="mvn")
-        return torch.from_numpy(cqccs)
-
-    # TODO: Adding more feats
-
-
-class UVigoPatient:
-    def __init__(self, json_patient=None, json_obs: list = None):
-        self.patient = Patient.parse_obj(json_patient)
-        self.observations = [Observation.parse_obj(obs) for obs in json_obs]
-
-        self.patient_audios: list = self._load_audios()
-        self.audios_feats: list = self._extract_feats()
-
-        self.covid = None
-        self.long_covid = None
-
-    def get_id(self) -> str:
+    def get_id(patient: Patient) -> str:
         """
         Return the patient's id.
         :return: patient's id.
         """
-        return self.patient.id
+        return patient.identifier[0].value
 
-    def get_age(self) -> int:
+    @staticmethod
+    def get_age(patient: Patient) -> int:
         """
         Return the patient's age.
         :return: patient's age.
         """
-        born = datetime(self.patient.birthDate.year, self.patient.birthDate.month, self.patient.birthDate.day)
-        return (datetime.utcnow() - born).days // 365
+        if isinstance(patient.birthDate, str):
+            born = int(patient.birthDate)
+            return datetime.utcnow().year - born
+        else:
+            born = datetime(patient.birthDate.year, patient.birthDate.month, patient.birthDate.day)
+            return (datetime.utcnow() - born).days // 365
 
-    def get_gender(self) -> str:
+    @staticmethod
+    def get_gender(patient: Patient) -> str:
         """
         Return the patient's gender.
         :return: patient's gender.
         """
-        return self.patient.gender
+        return patient.gender
 
-    def _load_audios(self) -> list:
+        patient_fhir = raw_patient if isinstance(raw_patient, Patient) else Patient.parse_obj(raw_patient)
+
+        self.id = get_id(patient_fhir)
+        self.age = get_age(patient_fhir)
+        self.gender = get_gender(patient_fhir)
+
+    def put_assign_covid(self, diagnosis: bool):
+        self.covid = diagnosis
+
+    def put_long_covid(self, diagnosis: bool):
+        self.long_covid = diagnosis
+
+    def _get_info_from_observation(self, observation: Observation):
+        patient_id = observation.subject.reference.split('/')[-1]
+        corilga_api = CorilgaApi()
+        patient = corilga_api.get_patient(patient_id)
+
+        self.id = patient_id
+        self.age = self.get_age(patient)
+        self.gender = self.get_gender(patient)
+
+
+class CoperiaDataset(torch.utils.data.Dataset):
+    def __init__(self, observation: list, covid_or_long_covid: bool = True, feat_type: str = None):
+        self.audios: list = self.get_audios(observation)
+
+        self.egs: list = []
+        self.generate_examples(covid_or_long_covid, feat_type)
+
+    @staticmethod
+    def get_audios(observations):
         audios = []
-        for obs in self.observations:
-            audio = CoperiaAudio(obs, int(config.get_key('RESAMPLE_RATE')))
+        for obs in observations:
+            audio = Audio(obs)
             audios.append(audio)
         return audios
 
-    def _extract_feats(self) -> torch.Tensor:
-        feats = []
-        for audio in self.patient_audios:
-            feat = Feats(audio)
-            feats.append(feat)
-        return feats
+    def generate_examples(self, select_type_label: bool):
+        for audio in self.audios:
+            signal = audio.resample_wave_form
+            sample_rate = audio.resample_rate
+            label = audio.patient.covid if select_type_label else audio.patient.long_covid
+
+            feat_extractor = FeatureExtractor(self.feat_type)
+            F = feat_extractor.do_feature_extraction(signal, sample_rate)
+
+            self.egs.append((F.to(self.device), torch.FloatTensor([label]).to(self.device)))
+
+    def __len__(self):
+        return len(self.egs)

@@ -1,6 +1,5 @@
-fhir~=0.0.4
-requests~=2.28.1
-torchaudio~=0.13.0
-numpy~=1.23.4
-ffmpeg~=1.4
+requests~=2.27.1
+numpy~=1.19.5
+torch~=1.10.1
+torchaudio~=0.10.1
 spafe~=0.2.0
