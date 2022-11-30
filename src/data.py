@@ -1,8 +1,11 @@
 import base64
+import os
+import subprocess
 import tempfile
 from datetime import datetime
 
 import numpy as np
+import soundfile
 import torch
 import torchaudio
 
@@ -10,20 +13,18 @@ from fhir.resources.observation import Observation
 from fhir.resources.patient import Patient
 
 from src.util import FeatureExtractor
-from src.api import CorilgaApi
+from src.api import CoperiaApi
 
 
 class Audio:
-    def __init__(self, observation: Observation, r_fs: int = 16000):
+    def __init__(self, observation: Observation, r_fs: int = 16000, save_path: str = None):
         # Audio section
         self.audio_id = observation.id
         self.duration = float(observation.contained[0].duration)
         self.type_code = observation.code.coding[0].code
 
         self.data_base64 = observation.contained[0].content.data
-
-        self.wave_form, self.sample_rate # = self._load_audio()
-        self.resample_wave_form, self.resample_rate # = self._resample_audio(self.wave_form, self.sample_rate, r_fs)
+        self.wave_form, self.sample_rate = self._load_audio(r_fs, save_path)
 
         self.patient = Patient(observation)
 
@@ -59,13 +60,22 @@ class Audio:
         sad[0, -sad_start_end_sil_length:] = 0
         return sad
 
-    def _load_audio(self):
+    def _load_audio(self, resample_f: int, save_path: str):
         decode64_data = base64.b64decode(self.data_base64)
-        with tempfile.NamedTemporaryFile(suffix='.wav') as wav_file:
-            wav_file.write(decode64_data)
-            s, fs = torchaudio.load(wav_file.name)
 
-        sad = self.compute_SAD(s.numpy(), self.fs)
+        wav_file = tempfile.NamedTemporaryFile(suffix='.wav')
+        wav_file.write(decode64_data)
+
+        if save_path is None:
+            save_path = tempfile.TemporaryFile(mode='wb')
+        else:
+            os.makedirs(save_path, exist_ok=True)
+            save_path = f'{os.path.join(os.getcwd(),save_path, self.audio_id)}.wav'
+
+        subprocess.run(f'ffmpeg -y -i {wav_file.name} -acodec pcm_s16le -ar {resample_f} -ac 1 {save_path}', shell=True)
+
+        s, fs = torchaudio.load(save_path)
+        sad = self.compute_SAD(s, fs)
         s = s[np.where(sad == 1)]
         return s, fs
 
@@ -129,7 +139,7 @@ class Patient:
 
     def _get_info_from_observation(self, observation: Observation):
         patient_id = observation.subject.reference.split('/')[-1]
-        corilga_api = CorilgaApi()
+        corilga_api = CoperiaApi()
         patient = corilga_api.get_patient(patient_id)
 
         self.id = patient_id
@@ -140,6 +150,7 @@ class Patient:
 class CoperiaDataset(torch.utils.data.Dataset):
     def __init__(self, observation: list, covid_or_long_covid: bool = True, feat_type: str = None):
         self.audios: list = self.get_audios(observation)
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.egs: list = []
         self.generate_examples(covid_or_long_covid, feat_type)
@@ -152,13 +163,13 @@ class CoperiaDataset(torch.utils.data.Dataset):
             audios.append(audio)
         return audios
 
-    def generate_examples(self, select_type_label: bool):
+    def generate_examples(self, select_type_label: bool = True, feat_type='mfcc'):
         for audio in self.audios:
             signal = audio.resample_wave_form
             sample_rate = audio.resample_rate
             label = audio.patient.covid if select_type_label else audio.patient.long_covid
 
-            feat_extractor = FeatureExtractor(self.feat_type)
+            feat_extractor = FeatureExtractor(feat_type)
             F = feat_extractor.do_feature_extraction(signal, sample_rate)
 
             self.egs.append((F.to(self.device), torch.FloatTensor([label]).to(self.device)))
