@@ -9,8 +9,8 @@ from fhir.resources.patient import Patient
 from fhir.resources.observation import Observation
 
 
-# An CORILGA API class
-class CorilgaApi:
+# An Coperia API class
+class CoperiaApi:
 
     def __init__(self, env_path: str = ''):
         self.fhir_config = Config(os.path.join(env_path, '.env.fhir'))
