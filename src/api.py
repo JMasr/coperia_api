@@ -1,12 +1,12 @@
-import os
 import json
+import os
 import warnings
+
 import requests
+from fhir.resources.observation import Observation
+from fhir.resources.patient import Patient
 
 from src.config import Config
-
-from fhir.resources.patient import Patient
-from fhir.resources.observation import Observation
 
 
 # An Coperia API class
@@ -60,20 +60,25 @@ class CoperiaApi:
         Getting token to call keycloak add user api
         :return: the access token request
         """
-        accessTokenUrl = self.keycloak_config.get_key('URL_KEYCLOAK_TOKEN')
 
-        # credential for your keycloak instance
-        username = self.keycloak_config.get_key('USER')
-        password = self.keycloak_config.get_key('PASSWORD')
-        payload = f'client_id=uvigo-app&username={username}&password={password}&grant_type=password'
-        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-
-        response = requests.request("POST", accessTokenUrl, headers=headers, data=payload)
-        if self.connection_is_success(response):
-            return json.loads(response.text)['access_token']
+        token = self.keycloak_config.get_key('TOKEN')
+        if len(token) > 1:
+            return token
         else:
-            raise ConnectionError(f'Error -> {json.loads(response.text)["error"]} |'
-                                  f' Description -> {json.loads(response.text)["error_description"]}')
+            accessTokenUrl = self.keycloak_config.get_key('URL_KEYCLOAK_TOKEN')
+
+            # credential for your keycloak instance
+            username = self.keycloak_config.get_key('USER')
+            password = self.keycloak_config.get_key('PASSWORD')
+            payload = f'client_id=uvigo-app&username={username}&password={password}&grant_type=password'
+            headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+
+            response = requests.request("POST", accessTokenUrl, headers=headers, data=payload)
+            if self.connection_is_success(response):
+                return json.loads(response.text)['access_token']
+            else:
+                raise ConnectionError(f'Error -> {json.loads(response.text)["error"]} |'
+                                      f' Description -> {json.loads(response.text).get("error_description")}')
 
     def get_patient_by_identifier(self, identifier: str = 'COPERIA-REHAB-00002'):
         """
@@ -102,7 +107,22 @@ class CoperiaApi:
         response_json = self.basic_request('GET', r_url, header)
         return Patient.parse_obj(response_json)
 
-    def get_observations_by_code(self, observation_code: str = "84728-5", update_data: str = 'gt2022-08-31') -> list:
+    def get_observations_total(self, observation_code: str = "84728-5", update_data: str = 'gt2022-11-21') -> int:
+        """
+        Get the amount of observation by code
+        :param observation_code: Code of observation
+        :param update_data: Label of last data parametrization (backend parameter)
+        :return: the number of observation by code
+        """
+        access_token = self.get_access_token()
+        header = {'Authorization': f'Bearer {access_token}'}
+
+        r_url = f'https://api.coperia.es/fhir-server/api/v4/Observation?_lastUpdated={update_data}&code={observation_code}'
+
+        response: dict = self.basic_request('GET', r_url, header)
+        return response.get('total')
+
+    def get_observations_by_code(self, observation_code: str = "84728-5", update_data: str = 'gt2022-11-21') -> list:
         """
         Get all the observations with the same code, using it as the query
         :param observation_code: code used as the search query
@@ -110,12 +130,12 @@ class CoperiaApi:
         :return: a list with the observation or an empty list if the code does not exist
         """
         access_token = self.get_access_token()
-        header = {'Authorization': 'Bearer ' + access_token}
-        r_url = f'{self.url_server}/Observation?code=http://loinc.org|{observation_code}&_lastUpdated={update_data}'
+        header = {'Authorization': f'Bearer {access_token}'}
 
-        response: dict = self.basic_request('GET', r_url, header)
-
-        if response.get('total') > 0:
+        observations_total = self.get_observations_total(observation_code, update_data)
+        if observations_total > 0:
+            r_url = f'https://api.coperia.es/fhir-server/api/v4/Observation?_lastUpdated={update_data}&code={observation_code}&_count={observations_total}'
+            response: dict = self.basic_request('GET', r_url, header)
             raw_observations: list = response.get('entry')
             if raw_observations is None:
                 raise ValueError('The Bundle of Observation does not have entries')
