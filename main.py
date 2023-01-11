@@ -4,7 +4,7 @@ import subprocess
 
 import pandas as pd
 
-from src.data import Audio, Patient
+from src.data import Audio, MyPatient, CoperiaMetadata
 from src.util import *
 
 
@@ -15,7 +15,7 @@ def download_coperia_patients_by_observation(observations: list, path: str = 'da
         for observation in observations:
             patient_id = observation.subject.reference.split('/')[-1]
             if patient_id not in patients_.keys():
-                patient = Patient(observation)
+                patient = MyPatient(observation)
                 patients_[patient_id] = patient
         save_obj(path, patients_)
         return patients_
@@ -38,7 +38,10 @@ def process_coperia_audio(patients: dict, audio_observations: list = None, sampl
         return audios
 
 
-def download_and_save_coperia_audios(path_save: str = 'dataset', version: str = 'V1', list_fs: list = [48000]):
+def download_and_save_coperia_audios(path_save: str = 'dataset', version: str = 'V1', list_fs: list = None):
+    if list_fs is None:
+        list_fs = [48000]
+
     # Audio codes
     code_cough = '84435-7'
     code_vowel_a = '84728-5'
@@ -50,13 +53,12 @@ def download_and_save_coperia_audios(path_save: str = 'dataset', version: str = 
     # Proces and save the audio data
     coperia_audios = []
     for sample_rate in list_fs:
-
         path_to_dataset = os.path.join(path_save, f'{version}_{sample_rate}')
         if not os.path.exists(path_to_dataset):
-            coperia_audio = process_coperia_audio(patients=patients_data, audio_observations=audios_obs,
+            coperia_audio = process_coperia_audio(patients=patients_data,
                                                   sample_rate=sample_rate,
+                                                  audio_observations=audios_obs,
                                                   path_save=os.path.join(path_save, f'{version}_{sample_rate}'))
-
             coperia_audios.append(coperia_audio)
             pickle_name = os.path.join(path_save, f'coperia_audios_{sample_rate}.pkl')
             save_obj(pickle_name, coperia_audios)
@@ -100,6 +102,10 @@ def struct_spectrogram(metadata_: pd.DataFrame, spectrogram_path: str):
 
 def plot_all_data(dfs: list, paths: list):
     for df, path in zip(dfs, paths):
+
+        if not os.path.exists(path):
+            os.makedirs(path)
+
         gender_distribution(df, path)
         gender_distribution(df, path, '/cough/')
         duration_distribution(df, path)
@@ -110,26 +116,51 @@ def plot_all_data(dfs: list, paths: list):
             patients_type_distribution(df, path)
 
 
-if __name__ == "__main__":
-    root_path = 'dataset'
-    data_version = 'V3'
-    sample_rates = [48000, 16000]
-    coperia = download_and_save_coperia_audios(path_save=root_path, version=data_version, list_fs=[48000, 16000])
+def check_4_new_data(path_data: str, codes: list = None):
+    if codes is None:
+        codes = ['84435-7', '84728-5']
 
-    coperia_48kHz = coperia[0]
-    coperia_16kHz = coperia[1]
+    for code in codes:
+        obs_path = os.path.join(path_data, f'audio_obs_{code}.pkl')
+        if os.path.exists(obs_path):
+            observations = load_obj(obs_path)
+        else:
+            observations = []
 
+        obs_in_disk = len(observations)
+        obs_in_cloud = CoperiaApi(os.getcwd()).get_observations_total(code)
+
+        if obs_in_disk != obs_in_cloud:
+            return True
+
+    return False
+
+
+def main_pipeline(root_path: str, data_version: int, sample_rates: list, codes: list):
     path_to_save = f'{root_path}_{data_version}/'
-    coperia_metadata = pd.read_csv(os.path.join(path_to_save, 'coperia_metadata.csv'), decimal=',')
+    path_to_metadata = os.path.join(path_to_save, 'coperia_metadata.csv')
+
+    if check_4_new_data(path_to_save, codes):
+        data_version += 1
+        coperia = download_and_save_coperia_audios(path_save=root_path, version=f'V{data_version}', list_fs=sample_rates)
+        coperia_metadata = CoperiaMetadata(coperia[0]).metadata
+        coperia_metadata.to_csv(path_to_metadata, decimal=',')
+    else:
+        coperia_metadata = pd.read_csv(path_to_metadata, decimal=',')
+
     coperia_metadata_control = coperia_metadata[coperia_metadata['patient_type'] == 'covid-control']
     coperia_metadata_persistente = coperia_metadata[coperia_metadata['patient_type'] == 'covid-persistente']
 
     plot_all_data([coperia_metadata, coperia_metadata_control, coperia_metadata_persistente],
                   [os.path.join(path_to_save, 'figures_all'),
-                  os.path.join(path_to_save, 'figures_control'),
-                  os.path.join(path_to_save, 'figures_persistente')])
+                   os.path.join(path_to_save, 'figures_control'),
+                   os.path.join(path_to_save, 'figures_persistente')])
 
     audios_48kHz_path = os.path.join(path_to_save, f'{data_version}_{sample_rates[0]}')
     specto_48kHz_path = os.path.join(path_to_save, f'{data_version}_{sample_rates[0]}_spectrogram')
     make_spectrogram(audios_48kHz_path, specto_48kHz_path)
     struct_spectrogram(coperia_metadata, specto_48kHz_path)
+
+
+if __name__ == "__main__":
+    main_pipeline('dataset', 3, [48000, 16000], ['84435-7', '84728-5'])
