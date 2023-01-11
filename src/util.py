@@ -33,7 +33,7 @@ class FeatureExtractor:
     """
 
     def __init__(self, feature_type: str = None):
-        self.conf = Config('.env.feats')
+        self.config = Config('.env.feats')
         self.feature_transformers = {'mfcc': mfcc,
                                      'imfcc': imfcc,
                                      'bfcc': bfcc,
@@ -50,7 +50,7 @@ class FeatureExtractor:
                                      'rplp': rplp}
 
         if feature_type is None:
-            self.feat_type = self.conf.get_key('feature_type')
+            self.feat_type = self.config.get_key('feature_type')
 
     def do_feature_extraction(self, s: torch.Tensor, fs: int):
         """ Feature preparation
@@ -78,13 +78,13 @@ class FeatureExtractor:
             F = np.nan_to_num(F)
             F = torch.from_numpy(F).T
 
-            if self.conf('compute_deltas') == 'True':
+            if self.config.get('compute_deltas') == 'True':
                 FD = torchaudio.functional.compute_deltas(F)
                 F = torch.cat((F, FD), dim=0)
 
-            if self.conf('compute_delta_deltas') == 'True':
-                FDD = torchaudio.functional.compute_deltas(FD)
-                F = torch.cat((F, FDD), dim=0)
+                if self.config.get('compute_delta_deltas') == 'True':
+                    FDD = torchaudio.functional.compute_deltas(FD)
+                    F = torch.cat((F, FDD), dim=0)
 
             return F.T
 
@@ -103,21 +103,27 @@ def load_obj(path_2_pkl: str):
         return pickle.load(pkl_file)
 
 
-def download_coperia_dataset_by_code(codes: list = [], path: str = 'data'):
-    api = CoperiaApi(os.getcwd())
+def download_coperia_dataset_by_code(codes: list = None, path: str = 'data'):
+    if codes is None:
+        return []
+    else:
+        api = CoperiaApi(os.getcwd())
 
-    dataset, total_samples = [], 0
-    for code in codes:
-        path_audios = os.path.join(path, f'audio_obs_{code}.pkl')
-        if not os.path.exists(path_audios):
-            dataset.extend(api.get_observations_by_code(code))
-            total_samples += api.get_observations_total(code)
-            save_obj(path_audios, dataset)
-        else:
-            data = load_obj(path_audios)
-            dataset.extend(data)
-    print(f"+=== {total_samples} samples downloaded. ===+")
-    return dataset
+        dataset, total_samples = [], 0
+        for code in codes:
+            path_audios = os.path.join(path, f'audio_obs_{code}.pkl')
+            if not os.path.exists(path_audios):
+                data = api.get_observations_by_code(code)
+                dataset.extend(data)
+
+                total_samples += api.get_observations_total(code)
+                save_obj(path_audios, data)
+            else:
+                data = load_obj(path_audios)
+                dataset.extend(data)
+
+        print(f"+=== {total_samples} observations downloaded. ===+")
+        return dataset
 
 
 def gender_distribution(metadata, path_store_figure: str = 'dataset/', audio_type: str = '/a/'):
@@ -216,9 +222,9 @@ def patients_age_distribution(metadata, path_store_figure: str = 'dataset/'):
     age_grouped_female = []
     age_labels = ['0-18', '18-30', '30-40', '40-50', '50-60', '60-70', '70-80']
     for i in age_labels:
-        age_grouped_male.append(len(age_cnt_male[(age_cnt_male > (int(i.split('-')[0]) - 1)) & \
+        age_grouped_male.append(len(age_cnt_male[(age_cnt_male > (int(i.split('-')[0]) - 1)) &
                                                  (age_cnt_male < int(i.split('-')[1]))]))
-        age_grouped_female.append(len(age_cnt_female[(age_cnt_female > (int(i.split('-')[0]) - 1)) & \
+        age_grouped_female.append(len(age_cnt_female[(age_cnt_female > (int(i.split('-')[0]) - 1)) &
                                                      (age_cnt_female < int(i.split('-')[1]))]))
     # Create a Figure
     fig, ax = plt.subplots(figsize=(7, 6))
