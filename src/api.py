@@ -15,7 +15,7 @@ class CoperiaApi:
     def __init__(self, env_path: str = ''):
         self.fhir_config = Config(os.path.join(env_path, '.env.fhir'))
         self.keycloak_config = Config(os.path.join(env_path, '.env.keycloak'))
-        self.url_server = f"{self.fhir_config.get_key('URL_FHIR')}/api/v4"
+        self.url_server = f"{self.fhir_config.get('URL_FHIR')}/api/v4"
 
     @staticmethod
     def connection_is_success(response: requests.request):
@@ -61,15 +61,15 @@ class CoperiaApi:
         :return: the access token request
         """
 
-        token = self.keycloak_config.get_key('TOKEN')
+        token = self.keycloak_config.get('TOKEN')
         if len(token) > 1:
             return token
         else:
-            accessTokenUrl = self.keycloak_config.get_key('URL_KEYCLOAK_TOKEN')
+            accessTokenUrl = self.keycloak_config.get('URL_KEYCLOAK_TOKEN')
 
             # credential for your keycloak instance
-            username = self.keycloak_config.get_key('USER')
-            password = self.keycloak_config.get_key('PASSWORD')
+            username = self.keycloak_config.get('USER')
+            password = self.keycloak_config.get('PASSWORD')
             payload = f'client_id=uvigo-app&username={username}&password={password}&grant_type=password'
             headers = {'Content-Type': 'application/x-www-form-urlencoded'}
 
