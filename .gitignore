@@ -109,3 +109,4 @@ venv.bak/
 # local data directory
 data/*
 *.wav
+/.env.keycloak
