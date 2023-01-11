@@ -5,6 +5,7 @@ import warnings
 import requests
 from fhir.resources.observation import Observation
 from fhir.resources.patient import Patient
+from keycloak import keycloak_openid, KeycloakOpenID
 
 from src.config import Config
 
@@ -56,29 +57,19 @@ class CoperiaApi:
             raise ConnectionError
 
     def get_access_token(self) -> str:
-        """
-        Getting token to call keycloak add user api
-        :return: the access token request
-        """
+        # credential for your keycloak instance
+        username = self.keycloak_config.get('USER')
+        password = self.keycloak_config.get('PASSWORD')
+        server_url = self.keycloak_config.get('URL_KEYCLOAK')
+        client_id = self.keycloak_config.get('CLIENT_ID')
 
-        token = self.keycloak_config.get('TOKEN')
-        if len(token) > 1:
-            return token
-        else:
-            accessTokenUrl = self.keycloak_config.get('URL_KEYCLOAK_TOKEN')
-
-            # credential for your keycloak instance
-            username = self.keycloak_config.get('USER')
-            password = self.keycloak_config.get('PASSWORD')
-            payload = f'client_id=uvigo-app&username={username}&password={password}&grant_type=password'
-            headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-
-            response = requests.request("POST", accessTokenUrl, headers=headers, data=payload)
-            if self.connection_is_success(response):
-                return json.loads(response.text)['access_token']
-            else:
-                raise ConnectionError(f'Error -> {json.loads(response.text)["error"]} |'
-                                      f' Description -> {json.loads(response.text).get("error_description")}')
+        # Configure client
+        keycloak_openid_ = KeycloakOpenID(server_url=server_url,
+                                          client_id=client_id,
+                                          realm_name="coperia")
+        # Get Access Token With Code
+        token = keycloak_openid_.token(username, password)
+        return token.get('access_token')
 
     def get_patient_by_identifier(self, identifier: str = 'COPERIA-REHAB-00002'):
         """

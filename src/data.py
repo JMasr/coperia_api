@@ -29,6 +29,7 @@ class Audio:
         self.audio_id = observation.contained[contained_slot].id
         self.duration = float(observation.contained[contained_slot].duration)
         self.type_code = observation.code.coding[0].code
+        self.audio_moment = 'after' if observation.meta.tag[0].code == 'after' else 'before'
 
         self.data_base64 = observation.contained[contained_slot].content.data
         self.wave_form, self.sample_rate = self._load_audio(r_fs, save_path)
@@ -114,6 +115,7 @@ class Audio:
                     'covid': self.patient.covid,
                     'long_covid': self.patient.long_covid,
                     'audio_type': '/cough/' if self.type_code == '84435-7' else '/a/',
+                    'audio_moment': self.audio_moment,
                     'audio_code': self.type_code,
                     'sample_rate': self.sample_rate,
                     'duration': self.duration,
