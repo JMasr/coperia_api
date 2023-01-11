@@ -3,9 +3,10 @@ import shutil
 import subprocess
 
 import pandas as pd
+from apscheduler.schedulers.blocking import BlockingScheduler
 
-from src.data import Audio, MyPatient, CoperiaMetadata
 from src.util import *
+from src.data import Audio, MyPatient, CoperiaMetadata
 
 
 def download_coperia_patients_by_observation(observations: list, path: str = 'data'):
@@ -176,4 +177,6 @@ def main_pipeline(root_path: str, data_version: int, sample_rates: list, codes: 
 
 
 if __name__ == "__main__":
-    main_pipeline('dataset', 3, [48000], ['84435-7', '84728-5'])
+    scheduler = BlockingScheduler()
+    scheduler.add_job(main_pipeline('dataset', 3, [48000], ['84435-7', '84728-5']), 'interval', hours=1)
+    scheduler.start()
