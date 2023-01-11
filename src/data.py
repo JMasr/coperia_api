@@ -121,7 +121,7 @@ class Audio:
         return pd.DataFrame([metadata])
 
 
-class Patient:
+class MyPatient:
     def __init__(self, observation: Observation):
 
         self.id: str = None
@@ -163,27 +163,37 @@ class Patient:
         """
         return patient.gender
 
-        patient_fhir = raw_patient if isinstance(raw_patient, Patient) else Patient.parse_obj(raw_patient)
-
-        self.id = get_id(patient_fhir)
-        self.age = get_age(patient_fhir)
-        self.gender = get_gender(patient_fhir)
-
     @staticmethod
     def get_long_covid(observation: Observation):
+        """
+        Return the value of long COVID
+        :param observation: Observation of sample
+        :return:
+        """
         return observation.meta.tag[-1].code != 'covid-control'
 
     @staticmethod
     def get_patient_type(observation: Observation):
+        """
+        Return the Patient type (covid-control or covid-persistente)
+        :param observation: Observation of sample
+        :return:
+        """
         return observation.meta.tag[-1].code
 
     def put_assign_covid(self, diagnosis: bool):
+
         self.covid = diagnosis
 
     def put_long_covid(self, diagnosis: bool):
         self.long_covid = diagnosis
 
     def _set_info_from_observation(self, observation: Observation):
+        """
+        Extract all the information from an Observation to populate the Patient data
+        :param observation: Observation of sample
+        :return:
+        """
         patient_id = observation.subject.reference.split('/')[-1]
         corilga_api = CoperiaApi()
         patient = corilga_api.get_patient(patient_id)
