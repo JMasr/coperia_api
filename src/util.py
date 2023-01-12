@@ -7,93 +7,9 @@ from collections import Counter
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import torch
-import torchaudio
-from spafe.features.bfcc import bfcc
-from spafe.features.cqcc import cqcc
-from spafe.features.gfcc import gfcc
-from spafe.features.lfcc import lfcc
-from spafe.features.lpc import lpc
-from spafe.features.lpc import lpcc
-from spafe.features.mfcc import mfcc, imfcc
-from spafe.features.msrcc import msrcc
-from spafe.features.ngcc import ngcc
-from spafe.features.pncc import pncc
-from spafe.features.psrcc import psrcc
-from spafe.features.rplp import plp, rplp
 
 from src.api import CoperiaApi
-from src.config import Config
-from src.data import Audio
-
-
-class FeatureExtractor:
-    """ Class for feature extraction
-    args: input arguments dictionary
-    Mandatory arguments: resampling_rate, feature_type, window_size, hop_length
-    For MFCC: f_max, n_mels, n_mfcc
-    For MelSpec/logMelSpec: f_max, n_mels
-    Optional arguments: compute_deltas, compute_delta_deltas
-    """
-
-    def __init__(self, feature_type: str = None):
-        self.config = Config('.env.feats')
-        self.feature_transformers = {'mfcc': mfcc,
-                                     'imfcc': imfcc,
-                                     'bfcc': bfcc,
-                                     'cqcc': cqcc,
-                                     'gfcc': gfcc,
-                                     'lfcc': lfcc,
-                                     'lpc': lpc,
-                                     'lpcc': lpcc,
-                                     'msrcc': msrcc,
-                                     'ngcc': ngcc,
-                                     'pncc': pncc,
-                                     'psrcc': psrcc,
-                                     'plp': plp,
-                                     'rplp': rplp}
-
-        if feature_type is None:
-            self.feat_type = self.config.get_key('feature_type')
-
-    def do_feature_extraction(self, s: torch.Tensor, fs: int):
-        """ Feature preparation
-        Steps:
-        1. Apply feature extraction to waveform
-        2. Convert amplitude to dB if required
-        3. Append delta and delta-delta features
-        """
-        if self.feat_type.lower() in self.feature_transformers:
-            # Spafe feature selected
-            F = self.feature_transformers[self.feat_type](s, fs,
-                                                          num_ceps=int(self.config.get('num_ceps')),
-                                                          low_freq=int(self.config.get('low_freq')),
-                                                          high_freq=int(fs / 2),
-                                                          normalize=self.config.get('normalize'),
-                                                          pre_emph=self.config.get('pre_emph'),
-                                                          pre_emph_coeff=float(self.config.get('pre_emph_coeff')),
-                                                          win_len=float(self.config.get('win_len')),
-                                                          win_hop=float(self.config.get('win_hop')),
-                                                          win_type=self.config.get('win_type'),
-                                                          nfilts=int(self.config.get('nfilts')),
-                                                          nfft=int(self.config.get('nfft')),
-                                                          lifter=float(self.config.get('lifter')),
-                                                          use_energy=self.config.get('use_energy') == 'True')
-            F = np.nan_to_num(F)
-            F = torch.from_numpy(F).T
-
-            if self.config.get('compute_deltas') == 'True':
-                FD = torchaudio.functional.compute_deltas(F)
-                F = torch.cat((F, FD), dim=0)
-
-                if self.config.get('compute_delta_deltas') == 'True':
-                    FDD = torchaudio.functional.compute_deltas(FD)
-                    F = torch.cat((F, FDD), dim=0)
-
-            return F.T
-
-        else:
-            raise ValueError('Feature type not implemented')
+from src.data import Audio, MyPatient
 
 
 # Useful method
@@ -410,9 +326,13 @@ def struct_spectrogram(metadata_: pd.DataFrame, spectrogram_path: str):
 
         shutil.copy(spect_path, f'{spectrogram_path}/{spect_population}/{spect_task}/{spect_name}.png')
 
-def make_coperia_audios(audios_obs, patients_data, list_fs: list = [48000], path_save: str = 'dataset',
+
+def make_coperia_audios(audios_obs, patients_data, list_fs=None, path_save: str = 'dataset',
                         version: str = 'V1'):
     # Proces and save the audio data
+    if list_fs is None:
+        list_fs = [48000]
+
     coperia_audios = []
     for sample_rate in list_fs:
         data_path = os.path.join(path_save, f'coperia_audios_{sample_rate}.pkl')
@@ -430,6 +350,7 @@ def make_coperia_audios(audios_obs, patients_data, list_fs: list = [48000], path
             coperia_audios.append(coperia_audio)
 
     return coperia_audios
+
 
 def download_coperia_patients_by_observation(observations: list, path: str = 'data'):
     path = os.path.join(path, f'patients.pkl')
