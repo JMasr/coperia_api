@@ -151,6 +151,8 @@ def update_data(root_path: str = 'dataset_V4'):
 
 
 if __name__ == "__main__":
-    scheduler = BlockingScheduler()
-    scheduler.add_job(update_data('dataset_V4'), 'interval', hours=24)
-    scheduler.start()
+    # scheduler = BlockingScheduler()
+    # scheduler.add_job(update_data('dataset_V4'), 'interval', hours=24)
+    # scheduler.start()
+
+    update_data('dataset_V4')
