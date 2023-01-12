@@ -1,9 +1,12 @@
 import os
 import pickle
+import shutil
+import subprocess
 from collections import Counter
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import torch
 import torchaudio
 from spafe.features.bfcc import bfcc
@@ -21,6 +24,7 @@ from spafe.features.rplp import plp, rplp
 
 from src.api import CoperiaApi
 from src.config import Config
+from src.data import Audio
 
 
 class FeatureExtractor:
@@ -124,6 +128,22 @@ def download_coperia_dataset_by_code(codes: list = None, path: str = 'data'):
 
         print(f"+=== {total_samples} observations downloaded. ===+")
         return dataset
+
+
+def plot_all_data(dfs: list, paths: list):
+    for df, path in zip(dfs, paths):
+
+        if not os.path.exists(path):
+            os.makedirs(path)
+
+        gender_distribution(df, path)
+        gender_distribution(df, path, '/cough/')
+        duration_distribution(df, path)
+        duration_distribution(df, path, '/cough/')
+        patients_age_distribution(df, path)
+        patients_audio_distribution(df, path)
+        if df['patient_type'].unique().size > 1:
+            patients_type_distribution(df, path)
 
 
 def gender_distribution(metadata, path_store_figure: str = 'dataset/', audio_type: str = '/a/'):
@@ -358,3 +378,96 @@ def patients_audio_distribution(metadata, path_store_figure: str = 'dataset/'):
                                          f"COPERIA2022_metadata_patient_duration.jpg")
     ax.figure.savefig(path_store_figure, bbox_inches='tight')
     plt.show()
+
+
+def make_spectrogram(raw_audio_path: str, spectrogram_path: str):
+    os.makedirs(spectrogram_path, exist_ok=True)
+
+    for audio in os.listdir(raw_audio_path):
+        audio_path = f"{raw_audio_path}/{audio}"
+        subprocess.call(f'src/make_spectrogram.sh {audio_path}', shell=True)
+
+        png_path = audio_path.replace('.wav', '.png')
+        shutil.move(png_path, spectrogram_path)
+
+
+def struct_spectrogram(metadata_: pd.DataFrame, spectrogram_path: str):
+    df = metadata_[['patient_id', 'patient_type', 'audio_id', 'audio_type']].copy()
+    spect_names = os.listdir(spectrogram_path)
+
+    for patient_type in df.patient_type.unique():
+        os.makedirs(f'{spectrogram_path}/{patient_type}', exist_ok=True)
+        for audio_task in df.audio_type.unique():
+            os.makedirs(f'{spectrogram_path}/{patient_type}/{audio_task}', exist_ok=True)
+
+    for spect_name in spect_names:
+        spect_path = os.path.join(spectrogram_path, spect_name)
+        spect_name = spect_name.split('.')[0]
+
+        spect_task = 'a' if df[df.eq(spect_name).any(1)].audio_type.eq('/a/').sum() else 'cough'
+        spect_population = 'covid-control' if df[df.eq(spect_name).any(1)].patient_type.eq(
+            'covid-control').sum() else 'covid-persistente'
+
+        shutil.copy(spect_path, f'{spectrogram_path}/{spect_population}/{spect_task}/{spect_name}.png')
+
+def make_coperia_audios(audios_obs, patients_data, list_fs: list = [48000], path_save: str = 'dataset',
+                        version: str = 'V1'):
+    # Proces and save the audio data
+    coperia_audios = []
+    for sample_rate in list_fs:
+        data_path = os.path.join(path_save, f'coperia_audios_{sample_rate}.pkl')
+        if not os.path.exists(data_path):
+            coperia_audio = process_coperia_audio(patients=patients_data,
+                                                  sample_rate=sample_rate,
+                                                  audio_observations=audios_obs,
+                                                  path_save=os.path.join(path_save, f'{version}_{sample_rate}'))
+
+            pickle_name = os.path.join(path_save, f'coperia_audios_{sample_rate}.pkl')
+            save_obj(pickle_name, coperia_audio)
+            coperia_audios.append(coperia_audio)
+        else:
+            coperia_audio = load_obj(data_path)
+            coperia_audios.append(coperia_audio)
+
+    return coperia_audios
+
+def download_coperia_patients_by_observation(observations: list, path: str = 'data'):
+    path = os.path.join(path, f'patients.pkl')
+    if not os.path.exists(path):
+        patients_ = {}
+        for observation in observations:
+            patient_id = observation.subject.reference.split('/')[-1]
+            if patient_id not in patients_.keys():
+                patient = MyPatient(observation)
+                patients_[patient_id] = patient
+        save_obj(path, patients_)
+        return patients_
+    else:
+        return load_obj(path)
+
+
+def process_coperia_audio(patients: dict, audio_observations: list = None, sample_rate: int = 48000,
+                          path_save: str = None):
+    if audio_observations is None:
+        return []
+    else:
+        audios = []
+        for obs in audio_observations:
+            number_of_audios = len(obs.contained)
+            for i in range(number_of_audios):
+                audio = Audio(observation=obs, patients=patients, contained_slot=i, r_fs=sample_rate,
+                              save_path=path_save)
+                audios.append(audio)
+        return audios
+
+
+def download_and_save_coperia_data(path_save: str = 'dataset', version: str = 'V1'):
+    # Audio codes
+    code_cough = '84435-7'
+    code_vowel_a = '84728-5'
+    # Download the Obervation and Patients
+    path_save = f'{path_save}_{version}'
+    os.makedirs(path_save, exist_ok=True)
+    audios_obs = download_coperia_dataset_by_code([code_cough, code_vowel_a], path_save)
+    patients_data = download_coperia_patients_by_observation(path=path_save, observations=audios_obs)
+    return audios_obs, patients_data

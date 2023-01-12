@@ -1,123 +1,112 @@
 import os.path
-import shutil
-import subprocess
 
-import pandas as pd
 from apscheduler.schedulers.blocking import BlockingScheduler
 
 from src.util import *
-from src.data import Audio, MyPatient, CoperiaMetadata
+from src.data import MyPatient, CoperiaMetadata
 
 
-def download_coperia_patients_by_observation(observations: list, path: str = 'data'):
-    path = os.path.join(path, f'patients.pkl')
-    if not os.path.exists(path):
-        patients_ = {}
-        for observation in observations:
-            patient_id = observation.subject.reference.split('/')[-1]
-            if patient_id not in patients_.keys():
-                patient = MyPatient(observation)
-                patients_[patient_id] = patient
-        save_obj(path, patients_)
-        return patients_
-    else:
-        return load_obj(path)
+def make_audios_spectrogram(root_path: str, audios_metadata: pd.DataFrame):
+    """
+    Make a spectrogram of each audio in the dataset
+    :param root_path: root path of the data directory
+    :param audios_metadata: a list with all the audio samples as an Audio class
+    """
+    print('Making spectrograms...')
+    path_audio = os.path.join(root_path, f'wav_48000kHz')
+    path_spectrogram = os.path.join(root_path, f'wav_48000kHz_spectrogram')
+    make_spectrogram(path_audio, path_spectrogram)
+    struct_spectrogram(audios_metadata, path_spectrogram)
 
 
-def process_coperia_audio(patients: dict, audio_observations: list = None, sample_rate: int = 48000,
-                          path_save: str = None):
-    if audio_observations is None:
-        return []
-    else:
-        audios = []
-        for obs in audio_observations:
-            number_of_audios = len(obs.contained)
-            for i in range(number_of_audios):
-                audio = Audio(observation=obs, patients=patients, contained_slot=i, r_fs=sample_rate,
-                              save_path=path_save)
-                audios.append(audio)
-        return audios
+def make_metadata_plots(root_path: str, audios_metadata: pd.DataFrame):
+    """
+    Plot and save a set of png files with information about the dataset
+    :param root_path: root path of the data directory
+    :param audios_metadata: a list with all the audio samples as an Audio class
+    """
+    print('Making metadata...')
+    coperia_metadata_control = audios_metadata[audios_metadata['patient_type'] == 'covid-control']
+    coperia_metadata_persistente = audios_metadata[audios_metadata['patient_type'] == 'covid-persistente']
+    print('Making plots...')
+    plot_all_data([audios_metadata, coperia_metadata_control, coperia_metadata_persistente],
+                  [os.path.join(root_path, 'figures_all'),
+                   os.path.join(root_path, 'figures_control'),
+                   os.path.join(root_path, 'figures_persistente')])
 
 
-def download_and_save_coperia_data(path_save: str = 'dataset', version: str = 'V1'):
-    # Audio codes
-    code_cough = '84435-7'
-    code_vowel_a = '84728-5'
-    # Download the Obervation and Patients
-    path_save = f'{path_save}_{version}'
-    os.makedirs(path_save, exist_ok=True)
-    audios_obs = download_coperia_dataset_by_code([code_cough, code_vowel_a], path_save)
-    patients_data = download_coperia_patients_by_observation(path=path_save, observations=audios_obs)
-    return audios_obs, patients_data
+def make_audios_metadata(root_path: str, audios_dataset: list) -> pd.DataFrame:
+    """
+    Make a csv file with all the audio dataset metadata
+    :param root_path: root path of the data directory
+    :param audios_dataset: a list with all the audio samples as an Audio class
+    :return: a pandas.DataFrame with the audio dataset metadata
+    """
+    audios_metadata = CoperiaMetadata(audios_dataset[0]).metadata
+
+    metadata_path = os.path.join(root_path, 'coperia_metadata')
+    audios_metadata.to_csv(metadata_path, decimal=',')
+    return audios_metadata
 
 
-def make_coperia_audios(audios_obs, patients_data, list_fs: list = [48000], path_save: str = 'dataset',
-                        version: str = 'V1'):
+def make_audios_dataset(root_path: str, observations: list, patients: dict) -> list:
+    """
+    Make the audio samples and a dataset with instance of the class Audio
+    :param root_path: root path of the data directory
+    :param observations: list with the observation
+    :param patients: a dictionary with all the patients {patient_id: MyPatient}
+    :return: a list with all the audio samples as an Audio class
+    """
     # Proces and save the audio data
     coperia_audios = []
-    for sample_rate in list_fs:
-        data_path = os.path.join(path_save, f'coperia_audios_{sample_rate}.pkl')
-        if not os.path.exists(data_path):
-            coperia_audio = process_coperia_audio(patients=patients_data,
-                                                  sample_rate=sample_rate,
-                                                  audio_observations=audios_obs,
-                                                  path_save=os.path.join(path_save, f'{version}_{sample_rate}'))
+    for sample_rate in [48000, 16000]:
+        coperia_audio = process_coperia_audio(patients=patients,
+                                              sample_rate=sample_rate,
+                                              audio_observations=observations,
+                                              path_save=os.path.join(root_path, f'wav_{sample_rate}kHz'))
 
-            pickle_name = os.path.join(path_save, f'coperia_audios_{sample_rate}.pkl')
-            save_obj(pickle_name, coperia_audio)
-            coperia_audios.append(coperia_audio)
-        else:
-            coperia_audio = load_obj(data_path)
-            coperia_audios.extend(coperia_audio)
-
+        data_path = os.path.join(root_path, f'coperia_audios_{sample_rate}.pkl')
+        save_obj(data_path, coperia_audio)
+        coperia_audios.append(coperia_audio)
     return coperia_audios
 
 
-def make_spectrogram(raw_audio_path: str, spectrogram_path: str):
-    os.makedirs(spectrogram_path, exist_ok=True)
+def download_coperia_patients(root_path: str, observations: list) -> dict:
+    """
+    Download and store in a dictionary the patient's metadata given a list of observation
+    :param observations: list with the observation
+    :param root_path: root path of the data directory
+    :return: a dictionary where the key is the patient's id and the value is an instance of the class MyPatient
+    """
+    path = os.path.join(root_path, f'patients.pkl')
 
-    for audio in os.listdir(raw_audio_path):
-        audio_path = f"{raw_audio_path}/{audio}"
-        subprocess.call(f'src/make_spectrogram.sh {audio_path}', shell=True)
-
-        png_path = audio_path.replace('.wav', '.png')
-        shutil.move(png_path, spectrogram_path)
-
-
-def struct_spectrogram(metadata_: pd.DataFrame, spectrogram_path: str):
-    df = metadata_[['patient_id', 'patient_type', 'audio_id', 'audio_type']].copy()
-    spect_names = os.listdir(spectrogram_path)
-
-    for patient_type in df.patient_type.unique():
-        os.makedirs(f'{spectrogram_path}/{patient_type}', exist_ok=True)
-        for audio_task in df.audio_type.unique():
-            os.makedirs(f'{spectrogram_path}/{patient_type}/{audio_task}', exist_ok=True)
-
-    for spect_name in spect_names:
-        spect_path = os.path.join(spectrogram_path, spect_name)
-        spect_name = spect_name.split('.')[0]
-
-        spect_task = 'a' if df[df.eq(spect_name).any(1)].audio_type.eq('/a/').sum() else 'cough'
-        spect_population = 'covid-control' if df[df.eq(spect_name).any(1)].patient_type.eq(
-            'covid-control').sum() else 'covid-persistente'
-
-        shutil.copy(spect_path, f'{spectrogram_path}/{spect_population}/{spect_task}/{spect_name}.png')
+    patients_dict = {}
+    for observation in observations:
+        patient_id = observation.subject.reference.split('/')[-1]
+        if patient_id not in patients_dict.keys():
+            patient = MyPatient(observation)
+            patients_dict[patient_id] = patient
+    save_obj(path, patients_dict)
+    return patients_dict
 
 
-def plot_all_data(dfs: list, paths: list):
-    for df, path in zip(dfs, paths):
+def download_coperia_observations(root_path: str) -> list:
+    """
+    Download the observation of Coperia by the voice codes, save it as pickle files, and return it as a list
+    :param root_path: root path of the data directory
+    :return: a list with two elements, each with the observation of one Coperia voice code
+    """
+    dataset = []
+    api = CoperiaApi(os.getcwd())
 
-        if not os.path.exists(path):
-            os.makedirs(path)
+    for code in ['84435-7', '84728-5']:
+        data = api.get_observations_by_code(code)
+        dataset.extend(data)
 
-        gender_distribution(df, path)
-        gender_distribution(df, path, '/cough/')
-        duration_distribution(df, path)
-        duration_distribution(df, path, '/cough/')
-        patients_age_distribution(df, path)
-        patients_audio_distribution(df, path)
-        if df['patient_type'].unique().size > 1:
-            patients_type_distribution(df, path)
+        print(f"+=== Downloaded {len(data)} observations with code {code}. ===+")
+        path_audios = os.path.join(root_path, f'audio_obs_{code}.pkl')
+        save_obj(path_audios, data)
+    return dataset
 
 
 def check_4_new_data(path_data: str, codes: list = None):
@@ -140,43 +129,28 @@ def check_4_new_data(path_data: str, codes: list = None):
     return False
 
 
-def main_pipeline(root_path: str, data_version: int, sample_rates: list, codes: list):
-    path_to_save = f'{root_path}_V{data_version}/'
-    path_to_metadata = os.path.join(path_to_save, 'coperia_metadata.csv')
+def update_data(root_path: str = 'dataset_V4'):
+    """
+    Check for new data in the Coperia Cloud and update the local files of the dataset
+    :param root_path: root path of the data directory
+    """
 
-    print('Checking for new data...')
-    if check_4_new_data(path_to_save, codes):
-        print('Downloading new data...')
-        data_version += 1
-        path_to_save = f'{root_path}_V{data_version}/'
-        path_to_metadata = os.path.join(path_to_save, 'coperia_metadata.csv')
-
-        audios_obs, patients_data = download_and_save_coperia_data(path_save=root_path, version=f'V{data_version}')
-        coperia = make_coperia_audios(audios_obs, patients_data, sample_rates, path_to_save, f'V{data_version}')
-
-        coperia_metadata = CoperiaMetadata(coperia[0]).metadata
-        coperia_metadata.to_csv(path_to_metadata, decimal=',')
+    if check_4_new_data(root_path):
+        print("There are new data.")
+        observations = download_coperia_observations(root_path)
+        patients = download_coperia_patients(root_path, observations)
+        audios_dataset = make_audios_dataset(root_path, observations, patients)
+        audios_metadata = make_audios_metadata(root_path, audios_dataset)
+        make_metadata_plots(audios_metadata, root_path)
+        make_audios_spectrogram(audios_metadata, root_path)
+        print("Dataset update!")
+        return True
     else:
-        print('No new data found...')
-        print('Loading data from disk...')
-        coperia_metadata = pd.read_csv(path_to_metadata, decimal=',')
-
-    print('Making metadata...')
-    coperia_metadata_control = coperia_metadata[coperia_metadata['patient_type'] == 'covid-control']
-    coperia_metadata_persistente = coperia_metadata[coperia_metadata['patient_type'] == 'covid-persistente']
-    print('Making plots...')
-    plot_all_data([coperia_metadata, coperia_metadata_control, coperia_metadata_persistente],
-                  [os.path.join(path_to_save, 'figures_all'),
-                   os.path.join(path_to_save, 'figures_control'),
-                   os.path.join(path_to_save, 'figures_persistente')])
-    print('Making spectrograms...')
-    audios_48kHz_path = os.path.join(path_to_save, f'V{data_version}_{sample_rates[0]}')
-    specto_48kHz_path = os.path.join(path_to_save, f'V{data_version}_{sample_rates[0]}_spectrogram')
-    make_spectrogram(audios_48kHz_path, specto_48kHz_path)
-    struct_spectrogram(coperia_metadata, specto_48kHz_path)
+        print("There isn't new data.")
+        return False
 
 
 if __name__ == "__main__":
     scheduler = BlockingScheduler()
-    scheduler.add_job(main_pipeline('dataset', 3, [48000], ['84435-7', '84728-5']), 'interval', hours=1)
+    scheduler.add_job(update_data('dataset_V4'), 'interval', hours=24)
     scheduler.start()
