@@ -42,7 +42,7 @@ def make_audios_metadata(root_path: str, audios_dataset: list) -> pd.DataFrame:
     :param audios_dataset: a list with all the audio samples as an Audio class
     :return: a pandas.DataFrame with the audio dataset metadata
     """
-    audios_metadata = CoperiaMetadata(audios_dataset[0]).metadata
+    audios_metadata = CoperiaMetadata(audios_dataset).metadata
 
     metadata_path = os.path.join(root_path, 'coperia_metadata')
     audios_metadata.to_csv(metadata_path, decimal=',')
@@ -135,14 +135,16 @@ def update_data(root_path: str = 'dataset_V4'):
     :param root_path: root path of the data directory
     """
 
-    if check_4_new_data(root_path):
+    if True:
+    # if check_4_new_data(root_path):
         print("There are new data.")
-        observations = download_coperia_observations(root_path)
-        patients = download_coperia_patients(root_path, observations)
-        audios_dataset = make_audios_dataset(root_path, observations, patients)
+        # observations = download_coperia_observations(root_path)
+        # patients = download_coperia_patients(root_path, observations)
+        # audios_dataset = make_audios_dataset(root_path, observations, patients)
+        audios_dataset = load_obj(os.path.join(root_path, 'coperia_audios_48000.pkl'))
         audios_metadata = make_audios_metadata(root_path, audios_dataset)
-        make_metadata_plots(audios_metadata, root_path)
-        make_audios_spectrogram(audios_metadata, root_path)
+        make_metadata_plots(root_path, audios_metadata)
+        make_audios_spectrogram(root_path, audios_metadata)
         print("Dataset update!")
         return True
     else:
@@ -151,8 +153,6 @@ def update_data(root_path: str = 'dataset_V4'):
 
 
 if __name__ == "__main__":
-    # scheduler = BlockingScheduler()
-    # scheduler.add_job(update_data('dataset_V4'), 'interval', hours=24)
-    # scheduler.start()
-
-    update_data('dataset_V4')
+    scheduler = BlockingScheduler()
+    scheduler.add_job(update_data('dataset_V4'), 'interval', hours=24)
+    scheduler.start()
