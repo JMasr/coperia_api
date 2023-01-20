@@ -1,3 +1,4 @@
+import argparse
 import os.path
 import pandas as pd
 
@@ -151,4 +152,9 @@ def update_data(root_path: str = 'dataset_V4'):
 
 
 if __name__ == "__main__":
-    update_data('dataset')
+    # Load arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--data_path', '-o', default='dataset')  # Set a directory to save the data
+    args = parser.parse_args()
+    # Check for new data
+    update_data(args.data_path)
