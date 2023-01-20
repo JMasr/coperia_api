@@ -1,5 +1,7 @@
 import os.path
+import pandas as pd
 
+from demo.src.api import CoperiaApi
 from src.util import *
 from src.data import MyPatient, CoperiaMetadata
 
@@ -138,7 +140,6 @@ def update_data(root_path: str = 'dataset_V4'):
         observations = download_coperia_observations(root_path)
         patients = download_coperia_patients(root_path, observations)
         audios_dataset = make_audios_dataset(root_path, observations, patients)
-        # audios_dataset = load_obj(os.path.join(root_path, 'coperia_audios_48000.pkl'))
         audios_metadata = make_audios_metadata(root_path, audios_dataset)
         make_metadata_plots(root_path, audios_metadata)
         make_audios_spectrogram(root_path, audios_metadata)

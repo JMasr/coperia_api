@@ -14,6 +14,7 @@ from src.data import Audio, MyPatient
 
 # Useful method
 def save_obj(pickle_name, obj):
+    os.makedirs(os.path.dirname(pickle_name), exist_ok=True)
     with open(pickle_name, 'wb') as handle:
         pickle.dump(obj, handle, 0)
 
