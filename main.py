@@ -2,7 +2,7 @@ import argparse
 import os.path
 import pandas as pd
 
-from demo.src.api import CoperiaApi
+from src.api import CoperiaApi
 from src.util import *
 from src.data import MyPatient, CoperiaMetadata
 
@@ -59,17 +59,15 @@ def make_audios_dataset(root_path: str, observations: list, patients: dict) -> l
     :return: a list with all the audio samples as an Audio class
     """
     # Proces and save the audio data
-    coperia_audios = []
-    for sample_rate in [48000, 16000]:
-        coperia_audio = process_coperia_audio(patients=patients,
-                                              sample_rate=sample_rate,
-                                              audio_observations=observations,
-                                              path_save=os.path.join(root_path, f'wav_{sample_rate}kHz'))
+    sample_rate = 48000
+    coperia_audio = process_coperia_audio(patients=patients,
+                                          sample_rate=sample_rate,
+                                          audio_observations=observations,
+                                          path_save=os.path.join(root_path, f'wav_{sample_rate}kHz'))
 
-        data_path = os.path.join(root_path, f'coperia_audios_{sample_rate}.pkl')
-        save_obj(data_path, coperia_audio)
-        coperia_audios.append(coperia_audio)
-    return coperia_audios
+    data_path = os.path.join(root_path, f'coperia_audios_{sample_rate}.pkl')
+    save_obj(data_path, coperia_audio)
+    return coperia_audio
 
 
 def download_coperia_patients(root_path: str, observations: list) -> dict:
@@ -136,14 +134,14 @@ def update_data(root_path: str = 'dataset_V4'):
     :param root_path: root path of the data directory
     """
 
-    if check_4_new_data(root_path):
+    if True:  # check_4_new_data(root_path):
         print("There are new data.")
         observations = download_coperia_observations(root_path)
         patients = download_coperia_patients(root_path, observations)
-        audios_dataset = make_audios_dataset(root_path, observations, patients)
-        audios_metadata = make_audios_metadata(root_path, audios_dataset)
-        make_metadata_plots(root_path, audios_metadata)
-        make_audios_spectrogram(root_path, audios_metadata)
+        audio_dataset = make_audios_dataset(root_path, observations, patients)
+        audio_metadata = make_audios_metadata(root_path, audio_dataset)
+        make_metadata_plots(root_path, audio_metadata)
+        make_audios_spectrogram(root_path, audio_metadata)
         print("Dataset update!")
         return True
     else:
