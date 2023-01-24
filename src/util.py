@@ -214,21 +214,23 @@ def patients_type_distribution(metadata, path_store_figure: str = 'dataset/'):
     # Create a Figure
     fig, ax = plt.subplots(figsize=(8, 6))
     # Set colors
-    clr_1 = 'tab:blue'
-    clr_2 = 'tab:red'
+    clr = ['tab:blue', 'tab:red', 'tab:green']
+    deco = [r"\\", "//", r"\\"]
     # Plot data
-    ax.bar(2, df[labels[0]], align='center', alpha=1, ecolor='black', capsize=5, hatch=r"\\", color=clr_1, width=.6)
-    ax.bar(4, df[labels[1]], align='center', alpha=1, ecolor='black', capsize=5, hatch="//", color=clr_2, width=.6)
+    for ind in range(len(labels)):
+        ax.bar(ind+1, df[labels[ind]], align='center', alpha=1, ecolor='black',
+               capsize=5, hatch=deco[ind], color=clr[ind], width=.6)
     # Adding a label with the total above each bar
     for i, v in enumerate(labels):
-        ax.text(2 * (i + 1) - .1, df[v] + 3, str(df[v]), color='black', fontweight='bold', fontsize=14)
+        ax.text((i + 1) - .1, df[v] + 3, str(df[v]), color='black', fontweight='bold', fontsize=14)
     # Captions
     plt.title(f'COPERIA2022: amount of patients in CONTROL and TEST group.')
-    plt.xticks([2, 4], labels, rotation=0)
+    plt.xticks(range(1, len(labels)+1), labels, rotation=0)
     plt.ylabel('COUNT', fontsize=14)
-    plt.xticks(fontsize=14)
+    plt.xticks(fontsize=10)
     plt.yticks(fontsize=14)
     # Extra details
+    ax.set_xlim(0, len(labels) + 2)
     ax.set_ylim(0, df.max() + 10)
     ax.grid(True)
     ax.spines['right'].set_visible(False)
