@@ -111,13 +111,13 @@ class FeatureExtractor:
 class Audio:
     def __init__(self, observation: Observation, patients: dict, contained_slot: int = 0, r_fs: int = 16000, save_path: str = None):
         # Audio section
-        self.audio_id = observation.contained[contained_slot].id
+        self.audio_id: str = observation.contained[contained_slot].id
         self.duration = float(observation.contained[contained_slot].duration)
         self.type_code = observation.code.coding[0].code
-        self.audio_moment = 'after' if observation.meta.tag[0].code == 'after' else 'before'
+        self.audio_moment: str = 'after' if observation.meta.tag[0].code == 'after' else 'before'
 
         self.data_base64 = observation.contained[contained_slot].content.data
-        self.wave_form, self.sample_rate = self._load_audio(r_fs, save_path)
+        self._load_audio(r_fs, save_path)
 
         patient_id = observation.subject.reference.split('/')[-1]
         self.patient = patients[patient_id]
@@ -174,11 +174,6 @@ class Audio:
 
         subprocess.run(f'ffmpeg -y -i {wav_file.name} -acodec pcm_s16le -ar {resample_f} -ac 1 {save_path}', shell=True)
 
-        s, fs = torchaudio.load(save_path)
-        sad = self._compute_SAD(s, fs)
-        s = s[np.where(sad == 1)]
-        return s, fs
-
     def save(self, pickle_path: str = None):
         if pickle_path is None:
             os.makedirs('dataset/default', exist_ok=True)
@@ -202,7 +197,6 @@ class Audio:
                     'audio_type': '/cough/' if self.type_code == '84435-7' else '/a/',
                     'audio_moment': self.audio_moment,
                     'audio_code': self.type_code,
-                    'sample_rate': self.sample_rate,
                     'duration': self.duration,
                     }
         return pd.DataFrame([metadata])
@@ -251,22 +245,28 @@ class MyPatient:
         return patient.gender
 
     @staticmethod
-    def get_long_covid(observation: Observation):
+    def get_long_covid(patient: Patient) -> bool:
         """
         Return the value of long COVID
-        :param observation: Observation of sample
+        :param patient: Patient of the sample
         :return:
         """
-        return observation.meta.tag[-1].code != 'covid-control'
+        for tag in patient.meta.tag:
+            if tag.code == "covid-control":
+                return False
+        return True
 
     @staticmethod
-    def get_patient_type(observation: Observation):
+    def get_patient_type(patient: Patient) -> str:
         """
         Return the Patient type (covid-control or covid-persistente)
-        :param observation: Observation of sample
+        :param patient: Patient of the sample
         :return:
         """
-        return observation.meta.tag[-1].code
+        for tag in patient.meta.tag:
+            if tag.code != "dicoperia":
+                return tag.code
+        return None
 
     def put_assign_covid(self, diagnosis: bool):
 
@@ -288,8 +288,8 @@ class MyPatient:
         self.id = patient_id
         self.age = self.get_age(patient)
         self.gender = self.get_gender(patient)
-        self.long_covid = self.get_long_covid(observation)
-        self.patient_type = self.get_patient_type(observation)
+        self.long_covid = self.get_long_covid(patient)
+        self.patient_type = self.get_patient_type(patient)
 
 
 class CoperiaMetadata:
