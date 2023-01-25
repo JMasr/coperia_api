@@ -5,7 +5,7 @@ import warnings
 import requests
 from fhir.resources.observation import Observation
 from fhir.resources.patient import Patient
-from keycloak import keycloak_openid, KeycloakOpenID
+from keycloak import KeycloakOpenID
 
 from src.config import Config
 
