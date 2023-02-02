@@ -1,10 +1,77 @@
 import argparse
 import os.path
-import pandas as pd
 
-from src.api import CoperiaApi
+from src.data import CoperiaMetadata
 from src.util import *
-from src.data import MyPatient, CoperiaMetadata
+
+
+def make_inference_files(root_path: str, output_path: str, audios_metadata: pd.DataFrame):
+    """
+    Giving a pd.DataFrame with the audio dataset metadata, make a scp file for each group of patients.
+    :param root_path: root path of the data directory
+    :param output_path: path where the scp files will be saved
+    :param audios_metadata: a list with all the audio samples as an Audio class
+    """
+    print("Making scp files...")
+    path_scp = os.path.join(root_path, 'scp')
+    os.makedirs(output_path, exist_ok=True)
+    # Filtering data
+    patient_control = audios_metadata[audios_metadata['patient_type'] == 'covid-control']
+    patient_control_auidio_type_a = patient_control[patient_control['audio_type'] == '/a/']
+    patient_control_auidio_type_cough = patient_control[patient_control['audio_type'] == '/cough/']
+
+    patient_persistente = audios_metadata[audios_metadata['patient_type'] == 'covid-persistente']
+    patient_persistente_auidio_type_a = patient_persistente[patient_persistente['audio_type'] == '/a/']
+    patient_persistente_auidio_type_cough = patient_persistente[patient_persistente['audio_type'] == '/cough/']
+
+    # Making scp files
+    with open(os.path.join(output_path, 'scp_control'), 'w') as f:
+        for row in patient_control.itertuples():
+            f.write(f'{row.audio_id}\t{os.path.join(root_path, row.audio_id)}.wav\n')
+
+    with open(os.path.join(output_path, 'reference_control'), 'w') as f:
+        for row in patient_control.itertuples():
+            f.write(f'{row.audio_id}\tn\n')
+
+    with open(os.path.join(output_path, 'scp_control_a'), 'w') as f:
+        for row in patient_control_auidio_type_a.itertuples():
+            f.write(f'{row.audio_id}\t{os.path.join(root_path, row.audio_id)}.wav\n')
+
+    with open(os.path.join(output_path, 'reference_control_a'), 'w') as f:
+        for row in patient_control_auidio_type_a.itertuples():
+            f.write(f'{row.audio_id}\tn\n')
+
+    with open(os.path.join(output_path, 'scp_control_cough'), 'w') as f:
+        for row in patient_control_auidio_type_cough.itertuples():
+            f.write(f'{row.audio_id}\t{os.path.join(root_path, row.audio_id)}.wav\n')
+
+    with open(os.path.join(output_path, 'reference_control_cough'), 'w') as f:
+        for row in patient_control_auidio_type_cough.itertuples():
+            f.write(f'{row.audio_id}\tn\n')
+
+    with open(os.path.join(output_path, 'scp_persistente'), 'w') as f:
+        for row in patient_persistente.itertuples():
+            f.write(f'{row.audio_id}\t{os.path.join(root_path, row.audio_id)}.wav\n')
+
+    with open(os.path.join(output_path, 'reference_persistente'), 'w') as f:
+        for row in patient_persistente.itertuples():
+            f.write(f'{row.audio_id}\tp\n')
+
+    with open(os.path.join(output_path, 'scp_persistente_a'), 'w') as f:
+        for row in patient_persistente_auidio_type_a.itertuples():
+            f.write(f'{row.audio_id}\t{os.path.join(root_path, row.audio_id)}.wav\n')
+
+    with open(os.path.join(output_path, 'reference_persistente_a'), 'w') as f:
+        for row in patient_persistente_auidio_type_a.itertuples():
+            f.write(f'{row.audio_id}\tp\n')
+
+    with open(os.path.join(output_path, 'scp_persistente_cough'), 'w') as f:
+        for row in patient_persistente_auidio_type_cough.itertuples():
+            f.write(f'{row.audio_id}\t{os.path.join(root_path, row.audio_id)}.wav\n')
+
+    with open(os.path.join(output_path, 'reference_persistente_cough'), 'w') as f:
+        for row in patient_persistente_auidio_type_cough.itertuples():
+            f.write(f'{row.audio_id}\tp\n')
 
 
 def make_audios_spectrogram(root_path: str, audios_metadata: pd.DataFrame):
@@ -128,13 +195,13 @@ def check_4_new_data(path_data: str, codes: list = None):
     return False
 
 
-def update_data(root_path: str = 'dataset_V4'):
+def update_data(root_path: str = 'dataset_V4') -> bool:
     """
     Check for new data in the Coperia Cloud and update the local files of the dataset
     :param root_path: root path of the data directory
     """
 
-    if True:  # check_4_new_data(root_path):
+    if check_4_new_data(root_path):
         print("There are new data.")
         observations = download_coperia_observations(root_path)
         patients = download_coperia_patients(root_path, observations)
@@ -142,6 +209,7 @@ def update_data(root_path: str = 'dataset_V4'):
         audio_metadata = make_audios_metadata(root_path, audio_dataset)
         make_metadata_plots(root_path, audio_metadata)
         make_audios_spectrogram(root_path, audio_metadata)
+        make_inference_files(os.path.join(root_path, 'wav_48000kHz'), 'dataset/inference_files', audio_metadata)
         print("Dataset update!")
         return True
     else:
@@ -152,7 +220,8 @@ def update_data(root_path: str = 'dataset_V4'):
 if __name__ == "__main__":
     # Load arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_path', '-o', default='dataset')  # Set a directory to save the data
+    # Set a directory to save the data
+    parser.add_argument('--data_path', '-o', default='dataset')
     args = parser.parse_args()
     # Check for new data
     update_data(args.data_path)

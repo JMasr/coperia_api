@@ -32,8 +32,6 @@ from spafe.features.psrcc import psrcc
 from spafe.features.rplp import plp, rplp
 
 
-
-
 # Set the Seaborn style
 sns.set_style("white")
 sns.set_style("ticks")
