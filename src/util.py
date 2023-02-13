@@ -304,10 +304,11 @@ def make_spectrogram(raw_audio_path: str, spectrogram_path: str):
 
     for audio in os.listdir(raw_audio_path):
         audio_path = f"{raw_audio_path}/{audio}"
-        subprocess.call(f'src/make_spectrogram.sh {audio_path}', shell=True)
-
         png_path = audio_path.replace('.wav', '.png')
-        shutil.move(png_path, spectrogram_path)
+
+        if not os.path.exists(png_path):
+            subprocess.call(f'src/make_spectrogram.sh {audio_path}', shell=True)
+            shutil.move(png_path, spectrogram_path)
 
 
 def struct_spectrogram(metadata_: pd.DataFrame, spectrogram_path: str):

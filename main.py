@@ -1,6 +1,8 @@
 import argparse
 import os.path
 
+from tqdm import tqdm
+
 from src.data import CoperiaMetadata
 from src.util import *
 
@@ -13,7 +15,6 @@ def make_inference_files(root_path: str, output_path: str, audios_metadata: pd.D
     :param audios_metadata: a list with all the audio samples as an Audio class
     """
     print("Making scp files...")
-    path_scp = os.path.join(root_path, 'scp')
     os.makedirs(output_path, exist_ok=True)
     # Filtering data
     patient_control = audios_metadata[audios_metadata['patient_type'] == 'covid-control']
@@ -25,51 +26,39 @@ def make_inference_files(root_path: str, output_path: str, audios_metadata: pd.D
     patient_persistente_auidio_type_cough = patient_persistente[patient_persistente['audio_type'] == '/cough/']
 
     # Making scp files
-    with open(os.path.join(output_path, 'scp_control'), 'w') as f:
+    with open(os.path.join(output_path, 'scp_all'), 'w') as f:
         for row in patient_control.itertuples():
             f.write(f'{row.audio_id}\t{os.path.join(root_path, row.audio_id)}.wav\n')
-
-    with open(os.path.join(output_path, 'reference_control'), 'w') as f:
-        for row in patient_control.itertuples():
-            f.write(f'{row.audio_id}\tn\n')
-
-    with open(os.path.join(output_path, 'scp_control_a'), 'w') as f:
-        for row in patient_control_auidio_type_a.itertuples():
-            f.write(f'{row.audio_id}\t{os.path.join(root_path, row.audio_id)}.wav\n')
-
-    with open(os.path.join(output_path, 'reference_control_a'), 'w') as f:
-        for row in patient_control_auidio_type_a.itertuples():
-            f.write(f'{row.audio_id}\tn\n')
-
-    with open(os.path.join(output_path, 'scp_control_cough'), 'w') as f:
-        for row in patient_control_auidio_type_cough.itertuples():
-            f.write(f'{row.audio_id}\t{os.path.join(root_path, row.audio_id)}.wav\n')
-
-    with open(os.path.join(output_path, 'reference_control_cough'), 'w') as f:
-        for row in patient_control_auidio_type_cough.itertuples():
-            f.write(f'{row.audio_id}\tn\n')
-
-    with open(os.path.join(output_path, 'scp_persistente'), 'w') as f:
         for row in patient_persistente.itertuples():
             f.write(f'{row.audio_id}\t{os.path.join(root_path, row.audio_id)}.wav\n')
 
-    with open(os.path.join(output_path, 'reference_persistente'), 'w') as f:
+    with open(os.path.join(output_path, 'reference_all'), 'w') as f:
+        for row in patient_control.itertuples():
+            f.write(f'{row.audio_id}\tn\n')
         for row in patient_persistente.itertuples():
             f.write(f'{row.audio_id}\tp\n')
 
-    with open(os.path.join(output_path, 'scp_persistente_a'), 'w') as f:
+    with open(os.path.join(output_path, 'scp_all_a'), 'w') as f:
+        for row in patient_control_auidio_type_a.itertuples():
+            f.write(f'{row.audio_id}\t{os.path.join(root_path, row.audio_id)}.wav\n')
         for row in patient_persistente_auidio_type_a.itertuples():
             f.write(f'{row.audio_id}\t{os.path.join(root_path, row.audio_id)}.wav\n')
 
-    with open(os.path.join(output_path, 'reference_persistente_a'), 'w') as f:
+    with open(os.path.join(output_path, 'reference_all_a'), 'w') as f:
+        for row in patient_control_auidio_type_a.itertuples():
+            f.write(f'{row.audio_id}\tn\n')
         for row in patient_persistente_auidio_type_a.itertuples():
             f.write(f'{row.audio_id}\tp\n')
 
-    with open(os.path.join(output_path, 'scp_persistente_cough'), 'w') as f:
+    with open(os.path.join(output_path, 'scp_all_cough'), 'w') as f:
+        for row in patient_control_auidio_type_cough.itertuples():
+            f.write(f'{row.audio_id}\t{os.path.join(root_path, row.audio_id)}.wav\n')
         for row in patient_persistente_auidio_type_cough.itertuples():
             f.write(f'{row.audio_id}\t{os.path.join(root_path, row.audio_id)}.wav\n')
 
-    with open(os.path.join(output_path, 'reference_persistente_cough'), 'w') as f:
+    with open(os.path.join(output_path, 'reference_all_cough'), 'w') as f:
+        for row in patient_control_auidio_type_cough.itertuples():
+            f.write(f'{row.audio_id}\tn\n')
         for row in patient_persistente_auidio_type_cough.itertuples():
             f.write(f'{row.audio_id}\tp\n')
 
@@ -147,7 +136,7 @@ def download_coperia_patients(root_path: str, observations: list) -> dict:
     path = os.path.join(root_path, f'patients.pkl')
 
     patients_dict = {}
-    for observation in observations:
+    for observation in tqdm(observations):
         patient_id = observation.subject.reference.split('/')[-1]
         if patient_id not in patients_dict.keys():
             patient = MyPatient(observation)
@@ -165,7 +154,7 @@ def download_coperia_observations(root_path: str) -> list:
     dataset = []
     api = CoperiaApi(os.getcwd())
 
-    for code in ['84435-7', '84728-5']:
+    for code in ['80404-7', '8867-4']:
         data = api.get_observations_by_code(code)
         dataset.extend(data)
 
@@ -205,11 +194,6 @@ def update_data(root_path: str = 'dataset_V4') -> bool:
         print("There are new data.")
         observations = download_coperia_observations(root_path)
         patients = download_coperia_patients(root_path, observations)
-        audio_dataset = make_audios_dataset(root_path, observations, patients)
-        audio_metadata = make_audios_metadata(root_path, audio_dataset)
-        make_metadata_plots(root_path, audio_metadata)
-        make_audios_spectrogram(root_path, audio_metadata)
-        make_inference_files(os.path.join(root_path, 'wav_48000kHz'), 'dataset/inference_files', audio_metadata)
         print("Dataset update!")
         return True
     else:
@@ -221,7 +205,7 @@ if __name__ == "__main__":
     # Load arguments
     parser = argparse.ArgumentParser()
     # Set a directory to save the data
-    parser.add_argument('--data_path', '-o', default='dataset')
+    parser.add_argument('--data_path', '-o', default='dataset_cardio')
     args = parser.parse_args()
     # Check for new data
     update_data(args.data_path)

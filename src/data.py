@@ -261,10 +261,11 @@ class MyPatient:
         :param patient: Patient of the sample
         :return:
         """
-        for tag in patient.meta.tag:
-            if tag.code != "dicoperia":
-                return tag.code
-        return None
+        code_list = [tag.code for tag in patient.meta.tag]
+        if 'covid-control' in code_list:
+            return 'covid-control'
+        elif 'covid-persistente' in code_list:
+            return 'covid-persistente'
 
     def put_assign_covid(self, diagnosis: bool):
 
