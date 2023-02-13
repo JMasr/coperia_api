@@ -153,8 +153,9 @@ def download_coperia_observations(root_path: str) -> list:
     """
     dataset = []
     api = CoperiaApi(os.getcwd())
+    codes = ['84435-7', '84728-5']
 
-    for code in ['80404-7', '8867-4']:
+    for code in codes:
         data = api.get_observations_by_code(code)
         dataset.extend(data)
 
@@ -194,6 +195,11 @@ def update_data(root_path: str = 'dataset_V4') -> bool:
         print("There are new data.")
         observations = download_coperia_observations(root_path)
         patients = download_coperia_patients(root_path, observations)
+        audio_dataset = make_audios_dataset(root_path, observations, patients)
+        audio_metadata = make_audios_metadata(root_path, audio_dataset)
+        make_metadata_plots(root_path, audio_metadata)
+        make_audios_spectrogram(root_path, audio_metadata)
+        make_inference_files(os.path.join(root_path, 'wav_48000kHz'), 'dataset/inference_files', audio_metadata)
         print("Dataset update!")
         return True
     else:
@@ -205,7 +211,7 @@ if __name__ == "__main__":
     # Load arguments
     parser = argparse.ArgumentParser()
     # Set a directory to save the data
-    parser.add_argument('--data_path', '-o', default='dataset_cardio')
+    parser.add_argument('--data_path', '-o', default='dataset')
     args = parser.parse_args()
     # Check for new data
     update_data(args.data_path)
