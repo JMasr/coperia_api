@@ -13,18 +13,32 @@ from src.data import Audio, MyPatient
 
 
 # Useful method
-def save_obj(pickle_name, obj):
+def save_obj(pickle_name: str, obj: object):
+    """
+    Save an object in a pickle file
+    :param pickle_name: path of the pickle file
+    :param obj: object to save
+    """
     os.makedirs(os.path.dirname(pickle_name), exist_ok=True)
     with open(pickle_name, 'wb') as handle:
         pickle.dump(obj, handle, 0)
 
 
-def load_obj(path_2_pkl: str):
+def load_obj(path_2_pkl: str) -> object:
+    """
+    Load an object from a pickle file
+    :param path_2_pkl: path of the pickle file
+    """
     with open(path_2_pkl, 'rb') as pkl_file:
         return pickle.load(pkl_file)
 
 
-def download_coperia_dataset_by_code(codes: list = None, path: str = 'data'):
+def download_coperia_dataset_by_code(codes: list = None, path: str = 'data') -> list:
+    """
+    Download the COPERIA dataset from the FHIR server
+    :param codes: list of codes to filter the observations
+    :param path: path to store the dataset
+    """
     if codes is None:
         return []
     else:
@@ -48,6 +62,11 @@ def download_coperia_dataset_by_code(codes: list = None, path: str = 'data'):
 
 
 def plot_all_data(dfs: list, paths: list):
+    """
+    Plot all the data
+    :param dfs: list of dataframes
+    :param paths: list of paths to store the figures
+    """
     for df, path in zip(dfs, paths):
 
         if not os.path.exists(path):
@@ -64,6 +83,12 @@ def plot_all_data(dfs: list, paths: list):
 
 
 def gender_distribution(metadata, path_store_figure: str = 'dataset/', audio_type: str = '/a/'):
+    """
+    Plot the gender distribution of the dataset
+    :param metadata: dataframe with the metadata
+    :param path_store_figure: path to store the figure
+    :param audio_type: type of audio to filter the data
+    """
     # Filtering the data
     df = metadata.copy()
     gender_labels = df['gender'].unique()[::-1]
@@ -103,6 +128,12 @@ def gender_distribution(metadata, path_store_figure: str = 'dataset/', audio_typ
 
 
 def duration_distribution(metadata, path_store_figure: str = 'dataset/', audio_type: str = '/a/'):
+    """
+    Plot the duration distribution of the dataset
+    :param metadata: dataframe with the metadata
+    :param path_store_figure: path to store the figure
+    :param audio_type: type of audio to filter the data
+    """
     # Filtering the data
     df = metadata.copy()
     duration = df[(df['audio_type'] == audio_type)]['duration'].astype(int)
@@ -134,10 +165,9 @@ def duration_distribution(metadata, path_store_figure: str = 'dataset/', audio_t
 
 def patients_age_distribution(metadata, path_store_figure: str = 'dataset/'):
     """
-
-    :param metadata:
-    :param path_store_figure:
-    :return:
+    Plot the age distribution of the dataset
+    :param metadata: dataframe with the metadata
+    :param path_store_figure: path to store the figure
     """
     # Filtering the data
     df = metadata.copy()
@@ -201,10 +231,9 @@ def patients_age_distribution(metadata, path_store_figure: str = 'dataset/'):
 
 def patients_type_distribution(metadata, path_store_figure: str = 'dataset/'):
     """
-
-    :param metadata:
-    :param path_store_figure:
-    :return:
+    Plot the type distribution of the dataset
+    :param metadata: dataframe with the metadata
+    :param path_store_figure: path to store the figure
     """
     # Filtering the data
     df = metadata.copy()
@@ -246,10 +275,9 @@ def patients_type_distribution(metadata, path_store_figure: str = 'dataset/'):
 
 def patients_audio_distribution(metadata, path_store_figure: str = 'dataset/'):
     """
-
-    :param metadata:
-    :param path_store_figure:
-    :return:
+    Plot the audio distribution of the dataset
+    :param metadata: dataframe with the metadata
+    :param path_store_figure: path to store the figure
     """
     # Filtering the data
     df = metadata.copy()
@@ -300,6 +328,11 @@ def patients_audio_distribution(metadata, path_store_figure: str = 'dataset/'):
 
 
 def make_spectrogram(raw_audio_path: str, spectrogram_path: str):
+    """
+    Make a spectrogram from a raw audio file
+    :param raw_audio_path: path to the raw audio file
+    :param spectrogram_path: path to store the spectrogram
+    """
     os.makedirs(spectrogram_path, exist_ok=True)
 
     for audio in os.listdir(raw_audio_path):
@@ -312,6 +345,11 @@ def make_spectrogram(raw_audio_path: str, spectrogram_path: str):
 
 
 def struct_spectrogram(metadata_: pd.DataFrame, spectrogram_path: str):
+    """
+    Structure the spectrogram in a folder for each patient
+    :param metadata_: dataframe with the metadata
+    :param spectrogram_path: path to the spectrogram
+    """
     df = metadata_[['patient_id', 'patient_type', 'audio_id', 'audio_type']].copy()
     spect_names = os.listdir(spectrogram_path)
 
@@ -332,7 +370,15 @@ def struct_spectrogram(metadata_: pd.DataFrame, spectrogram_path: str):
 
 
 def make_coperia_audios(audios_obs, patients_data, list_fs=None, path_save: str = 'dataset',
-                        version: str = 'V1'):
+                        version: str = 'V1') -> list:
+    """
+    Make the COPERIA dataset from the raw audios
+    :param audios_obs: list of audios to use
+    :param patients_data: dataframe with the metadata
+    :param list_fs: list of sampling frequencies
+    :param path_save: path to store the dataset
+    :param version: version of the dataset
+    """
     # Proces and save the audio data
     if list_fs is None:
         list_fs = [48000]
@@ -356,7 +402,12 @@ def make_coperia_audios(audios_obs, patients_data, list_fs=None, path_save: str 
     return coperia_audios
 
 
-def download_coperia_patients_by_observation(observations: list, path: str = 'data'):
+def download_coperia_patients_by_observation(observations: list, path: str = 'data') -> dict:
+    """
+    Download the COPERIA dataset from the observation codes
+    :param observations: list of observations to download
+    :param path: path to store the dataset
+    """
     path = os.path.join(path, f'patients.pkl')
     if not os.path.exists(path):
         patients_ = {}
@@ -372,7 +423,14 @@ def download_coperia_patients_by_observation(observations: list, path: str = 'da
 
 
 def process_coperia_audio(patients: dict, audio_observations: list = None, sample_rate: int = 48000,
-                          path_save: str = None):
+                          path_save: str = None) -> list:
+    """
+    Process the COPERIA dataset
+    :param patients: dictionary with the patient information
+    :param audio_observations: list of audio observations
+    :param sample_rate: sampling frequency of the audio
+    :param path_save: path to store the dataset
+    """
     if audio_observations is None:
         return []
     else:
@@ -387,6 +445,11 @@ def process_coperia_audio(patients: dict, audio_observations: list = None, sampl
 
 
 def download_and_save_coperia_data(path_save: str = 'dataset', version: str = 'V1'):
+    """
+    Download and save the COPERIA dataset
+    :param path_save: path to store the dataset
+    :param version: version of the dataset
+    """
     # Audio codes
     code_cough = '84435-7'
     code_vowel_a = '84728-5'
