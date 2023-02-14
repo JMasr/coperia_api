@@ -98,34 +98,32 @@ class CoperiaApi:
         response_json = self.basic_request('GET', r_url, header)
         return Patient.parse_obj(response_json)
 
-    def get_observations_total(self, observation_code: str = "84728-5", update_data: str = 'gt2022-11-21') -> int:
+    def get_observations_total(self, observation_code: str = "84728-5") -> int:
         """
         Get the amount of observation by code
         :param observation_code: Code of observation
-        :param update_data: Label of last data parametrization (backend parameter)
         :return: the number of observation by code
         """
         access_token = self.get_access_token()
         header = {'Authorization': f'Bearer {access_token}'}
 
-        r_url = f'https://api.coperia.es/fhir-server/api/v4/Observation?_lastUpdated={update_data}&code={observation_code}'
+        r_url = f'https://api.coperia.es/fhir-server/api/v4/Observation?code={observation_code}'
 
         response: dict = self.basic_request('GET', r_url, header)
         return response.get('total')
 
-    def get_observations_by_code(self, observation_code: str = "84728-5", update_data: str = 'gt2022-11-21') -> list:
+    def get_observations_by_code(self, observation_code: str = "84728-5") -> list:
         """
         Get all the observations with the same code, using it as the query
         :param observation_code: code used as the search query
-        :param update_data: data to filter the version of data
         :return: a list with the observation or an empty list if the code does not exist
         """
         access_token = self.get_access_token()
         header = {'Authorization': f'Bearer {access_token}'}
 
-        observations_total = self.get_observations_total(observation_code, update_data)
+        observations_total = self.get_observations_total(observation_code)
         if observations_total > 0:
-            r_url = f'https://api.coperia.es/fhir-server/api/v4/Observation?_lastUpdated={update_data}&code={observation_code}&_count={observations_total}'
+            r_url = f'https://api.coperia.es/fhir-server/api/v4/Observation?code={observation_code}&_count={observations_total}'
             response: dict = self.basic_request('GET', r_url, header)
             raw_observations: list = response.get('entry')
             if raw_observations is None:

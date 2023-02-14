@@ -9,7 +9,7 @@ from src.util import *
 
 def make_inference_files(root_path: str, output_path: str, audios_metadata: pd.DataFrame):
     """
-    Giving a pd.DataFrame with the audio dataset metadata, make a scp file for each group of patients.
+    Giving a pd.DataFrame with the audio dataset metadata, make a scp file for each group of patients
     :param root_path: root path of the data directory
     :param output_path: path where the scp files will be saved
     :param audios_metadata: a list with all the audio samples as an Audio class
@@ -145,15 +145,18 @@ def download_coperia_patients(root_path: str, observations: list) -> dict:
     return patients_dict
 
 
-def download_coperia_observations(root_path: str) -> list:
+def download_coperia_observations(root_path: str, codes: list = None) -> list:
     """
     Download the observation of Coperia by the voice codes, save it as pickle files, and return it as a list
     :param root_path: root path of the data directory
+    :param codes: list with the observation codes
     :return: a list with two elements, each with the observation of one Coperia voice code
     """
+    if codes is None:
+        codes = ['84435-7', '84728-5']
+
     dataset = []
     api = CoperiaApi(os.getcwd())
-    codes = ['84435-7', '84728-5']
 
     for code in codes:
         data = api.get_observations_by_code(code)
@@ -166,6 +169,11 @@ def download_coperia_observations(root_path: str) -> list:
 
 
 def check_4_new_data(path_data: str, codes: list = None):
+    """
+    Check if there is new data in the Coperia server
+    :param path_data: path of the data directory
+    :param codes: list with the observation codes
+    """
     if codes is None:
         codes = ['84435-7', '84728-5']
 
