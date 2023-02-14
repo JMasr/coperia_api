@@ -9,7 +9,6 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import seaborn as sns
 import torch
 import torchaudio
 
@@ -30,11 +29,6 @@ from spafe.features.ngcc import ngcc
 from spafe.features.pncc import pncc
 from spafe.features.psrcc import psrcc
 from spafe.features.rplp import plp, rplp
-
-
-# Set the Seaborn style
-sns.set_style("white")
-sns.set_style("ticks")
 
 
 class FeatureExtractor:
@@ -262,10 +256,16 @@ class MyPatient:
         :return:
         """
         code_list = [tag.code for tag in patient.meta.tag]
-        if 'covid-control' in code_list:
+        if 'covid-control' in code_list and 'dicoperia' in code_list:
             return 'covid-control'
-        elif 'covid-persistente' in code_list:
+        elif 'covid-persistente' in code_list and 'dicoperia' in code_list:
             return 'covid-persistente'
+        elif 'covid-control' in code_list and 'dicoperia' not in code_list:
+            return 'unk-control'
+        elif 'covid-persistente' in code_list and 'dicoperia' not in code_list:
+            return 'unk-persistente'
+        else:
+            return 'UNK'
 
     def put_assign_covid(self, diagnosis: bool):
 
