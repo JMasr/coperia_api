@@ -102,7 +102,7 @@ def make_audios_metadata(root_path: str, audios_dataset: list) -> pd.DataFrame:
     audios_metadata = CoperiaMetadata(audios_dataset).metadata
 
     metadata_path = os.path.join(root_path, 'coperia_metadata')
-    audios_metadata.to_csv(metadata_path, decimal=',')
+    audios_metadata.to_csv(metadata_path, decimal=',', index=False)
     return audios_metadata
 
 
