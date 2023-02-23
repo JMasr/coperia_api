@@ -263,7 +263,7 @@ class MyPatient:
         elif 'covid-control' in code_list and 'dicoperia' not in code_list:
             return 'unk-control'
         elif 'covid-persistente' in code_list and 'dicoperia' not in code_list:
-            return 'unk-persistente'
+            return 'coperia-rehab'
         else:
             return 'UNK'
 
