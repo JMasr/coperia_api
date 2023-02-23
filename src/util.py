@@ -247,14 +247,14 @@ def patients_type_distribution(metadata, path_store_figure: str = 'dataset/'):
     deco = [r"\\", "//", r"\\"]
     # Plot data
     for ind in range(len(labels)):
-        ax.bar(ind+1, df[labels[ind]], align='center', alpha=1, ecolor='black',
+        ax.bar(ind + 1, df[labels[ind]], align='center', alpha=1, ecolor='black',
                capsize=5, hatch=deco[ind], color=clr[ind], width=.6)
     # Adding a label with the total above each bar
     for i, v in enumerate(labels):
         ax.text((i + 1) - .1, df[v] + 3, str(df[v]), color='black', fontweight='bold', fontsize=14)
     # Captions
     plt.title(f'COPERIA2022: amount of patients in CONTROL and TEST group.')
-    plt.xticks(range(1, len(labels)+1), labels, rotation=0)
+    plt.xticks(range(1, len(labels) + 1), labels, rotation=0)
     plt.ylabel('COUNT', fontsize=14)
     plt.xticks(fontsize=10)
     plt.yticks(fontsize=14)
@@ -334,12 +334,14 @@ def make_spectrogram(raw_audio_path: str, spectrogram_path: str):
     :param spectrogram_path: path to store the spectrogram
     """
     os.makedirs(spectrogram_path, exist_ok=True)
+    spectrogram_done = os.listdir(spectrogram_path)
 
     for audio in os.listdir(raw_audio_path):
         audio_path = f"{raw_audio_path}/{audio}"
         png_path = audio_path.replace('.wav', '.png')
 
-        if not os.path.exists(png_path):
+        png = audio.replace('.wav', '.png')
+        if png not in spectrogram_done:
             subprocess.call(f'src/make_spectrogram.sh {audio_path}', shell=True)
             shutil.move(png_path, spectrogram_path)
 
