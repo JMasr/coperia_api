@@ -2,6 +2,7 @@ import os
 import pickle
 import shutil
 import subprocess
+from tqdm import tqdm
 from collections import Counter
 
 import matplotlib.pyplot as plt
@@ -336,7 +337,7 @@ def make_spectrogram(raw_audio_path: str, spectrogram_path: str):
     os.makedirs(spectrogram_path, exist_ok=True)
     spectrogram_done = os.listdir(spectrogram_path)
 
-    for audio in os.listdir(raw_audio_path):
+    for audio in tqdm(os.listdir(raw_audio_path)):
         audio_path = f"{raw_audio_path}/{audio}"
         png_path = audio_path.replace('.wav', '.png')
 
@@ -354,13 +355,14 @@ def struct_spectrogram(metadata_: pd.DataFrame, spectrogram_path: str):
     """
     df = metadata_[['patient_id', 'patient_type', 'audio_id', 'audio_type']].copy()
     spect_names = os.listdir(spectrogram_path)
+    spect_names = [i for i in spect_names if i.endswith('.png')]
 
     for patient_type in df.patient_type.unique():
         os.makedirs(f'{spectrogram_path}/{patient_type}', exist_ok=True)
         for audio_task in df.audio_type.unique():
             os.makedirs(f'{spectrogram_path}/{patient_type}/{audio_task}', exist_ok=True)
 
-    for spect_name in spect_names:
+    for spect_name in tqdm(spect_names):
         spect_path = os.path.join(spectrogram_path, spect_name)
         spect_name = spect_name.split('.')[0]
 
@@ -368,7 +370,10 @@ def struct_spectrogram(metadata_: pd.DataFrame, spectrogram_path: str):
         spect_population = 'covid-control' if df[df.eq(spect_name).any(1)].patient_type.eq(
             'covid-control').sum() else 'covid-persistente'
 
-        shutil.copy(spect_path, f'{spectrogram_path}/{spect_population}/{spect_task}/{spect_name}.png')
+        new_location = f'{spectrogram_path}/{spect_population}/{spect_task}/{spect_name}.png'
+        if not os.path.exists(new_location):
+            print(f"Moving {spect_name} to {new_location}")
+            shutil.copy(spect_path, new_location)
 
 
 def make_coperia_audios(audios_obs, patients_data, list_fs=None, path_save: str = 'dataset',
@@ -437,7 +442,8 @@ def process_coperia_audio(patients: dict, audio_observations: list = None, sampl
         return []
     else:
         audios = []
-        for obs in audio_observations:
+        print(f"Processing {len(audio_observations)} audios")
+        for obs in tqdm(audio_observations):
             number_of_audios = len(obs.contained)
             for i in range(number_of_audios):
                 audio = Audio(observation=obs, patients=patients, contained_slot=i, r_fs=sample_rate,

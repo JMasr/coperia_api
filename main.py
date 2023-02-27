@@ -7,21 +7,21 @@ from src.data import CoperiaMetadata
 from src.util import *
 
 
-def make_inference_files(root_path: str, output_path: str, audios_metadata: pd.DataFrame):
+def make_inference_files(root_path: str, output_path: str, metadata: pd.DataFrame):
     """
     Giving a pd.DataFrame with the audio dataset metadata, make a scp file for each group of patients
     :param root_path: root path of the data directory
     :param output_path: path where the scp files will be saved
-    :param audios_metadata: a list with all the audio samples as an Audio class
+    :param metadata: a list with all the audio samples as an Audio class
     """
     print("Making scp files...")
     os.makedirs(output_path, exist_ok=True)
     # Filtering data
-    patient_control = audios_metadata[audios_metadata['patient_type'] == 'covid-control']
+    patient_control = metadata[metadata['patient_type'] == 'covid-control']
     patient_control_auidio_type_a = patient_control[patient_control['audio_type'] == '/a/']
     patient_control_auidio_type_cough = patient_control[patient_control['audio_type'] == '/cough/']
 
-    patient_persistente = audios_metadata[audios_metadata['patient_type'] == 'covid-persistente']
+    patient_persistente = metadata[metadata['patient_type'] == 'covid-persistente']
     patient_persistente_auidio_type_a = patient_persistente[patient_persistente['audio_type'] == '/a/']
     patient_persistente_auidio_type_cough = patient_persistente[patient_persistente['audio_type'] == '/cough/']
 
@@ -63,33 +63,54 @@ def make_inference_files(root_path: str, output_path: str, audios_metadata: pd.D
             f.write(f'{row.audio_id}\tp\n')
 
 
-def make_audios_spectrogram(root_path: str, audios_metadata: pd.DataFrame):
+def make_audios_spectrogram(root_path: str, metadata: pd.DataFrame):
     """
     Make a spectrogram of each audio in the dataset
     :param root_path: root path of the data directory
-    :param audios_metadata: a list with all the audio samples as an Audio class
+    :param metadata: a list with all the audio samples as an Audio class
     """
-    print('Making spectrograms...')
     path_audio = os.path.join(root_path, f'wav_48000kHz')
     path_spectrogram = os.path.join(root_path, f'wav_48000kHz_spectrogram')
+    print('Making spectrogram...')
     make_spectrogram(path_audio, path_spectrogram)
-    struct_spectrogram(audios_metadata, path_spectrogram)
+    print('Ordering spectrogram...')
+    struct_spectrogram(metadata, path_spectrogram)
 
 
-def make_metadata_plots(root_path: str, audios_metadata: pd.DataFrame):
+def make_metadata_plots(root_path: str, metadata: pd.DataFrame):
     """
     Plot and save a set of png files with information about the dataset
     :param root_path: root path of the data directory
-    :param audios_metadata: a list with all the audio samples as an Audio class
+    :param metadata: a list with all the audio samples as an Audio class
     """
     print('Making metadata...')
-    coperia_metadata_control = audios_metadata[audios_metadata['patient_type'] == 'covid-control']
-    coperia_metadata_persistente = audios_metadata[audios_metadata['patient_type'] == 'covid-persistente']
+    coperia_metadata_control = metadata[metadata['patient_type'] == 'covid-control']
+    coperia_metadata_persistente = metadata[metadata['patient_type'] == 'covid-persistente']
     print('Making plots...')
-    plot_all_data([audios_metadata, coperia_metadata_control, coperia_metadata_persistente],
+    plot_all_data([metadata, coperia_metadata_control, coperia_metadata_persistente],
                   [os.path.join(root_path, 'figures_all'),
                    os.path.join(root_path, 'figures_control'),
                    os.path.join(root_path, 'figures_persistente')])
+
+
+def make_dicoperia_metadata(root_path: str, metadata: pd.DataFrame, filter: dict = None) -> pd.DataFrame:
+    """
+    Make a metadata file for the COPERIA dataset filtering some columns
+    :param root_path: root path of the data directory
+    :param metadata: a list with all the audio samples in COPERIA as an Audio class
+    :param filter: a dictionary with the columns and values to filter
+    :return: a pandas dataframe with the metadata of the DICOPERIA dataset
+    """
+    print('Making dicoperia metadata...')
+    if filter is None:
+        filter = {'audio_id': ['c15e54fc-5290-4652-a3f7-ff3b779bd980', '244b61cc-4fd7-4073-b0d8-7bacd42f6202'],
+                  'patient_type': ['coperia-rehab']}
+
+    df = metadata.copy()
+    for key, values in filter.items():
+        df = df[~df[key].isin(values)]
+    df.to_csv(os.path.join(root_path, 'metadata.csv'), index=False, decimal=',')
+    return df
 
 
 def make_audios_metadata(root_path: str, audios_dataset: list) -> pd.DataFrame:
@@ -136,6 +157,7 @@ def download_coperia_patients(root_path: str, observations: list) -> dict:
     path = os.path.join(root_path, f'patients.pkl')
 
     patients_dict = {}
+    print('Downloading patients...')
     for observation in tqdm(observations):
         patient_id = observation.subject.reference.split('/')[-1]
         if patient_id not in patients_dict.keys():
@@ -199,15 +221,16 @@ def update_data(root_path: str = 'dataset_V4') -> bool:
     :param root_path: root path of the data directory
     """
 
-    if check_4_new_data(root_path):
+    if check_4_new_data(root_path) or True:
         print("There are new data.")
         observations = download_coperia_observations(root_path)
         patients = download_coperia_patients(root_path, observations)
         audio_dataset = make_audios_dataset(root_path, observations, patients)
         audio_metadata = make_audios_metadata(root_path, audio_dataset)
-        make_metadata_plots(root_path, audio_metadata)
-        make_audios_spectrogram(root_path, audio_metadata)
-        make_inference_files(os.path.join(root_path, 'wav_48000kHz'), 'dataset/inference_files', audio_metadata)
+        dicoperia_metadata = make_dicoperia_metadata(root_path, audio_metadata)
+        make_metadata_plots(root_path, dicoperia_metadata)
+        make_audios_spectrogram(root_path, dicoperia_metadata)
+        make_inference_files(os.path.join(root_path, 'wav_48000kHz'), 'dataset/inference_files', dicoperia_metadata)
         print("Dataset update!")
         return True
     else:
@@ -219,7 +242,7 @@ if __name__ == "__main__":
     # Load arguments
     parser = argparse.ArgumentParser()
     # Set a directory to save the data
-    parser.add_argument('--data_path', '-o', default='dataset')
+    parser.add_argument('--data_path', '-o', default='dataset_dicoperia', type=str)
     args = parser.parse_args()
     # Check for new data
     update_data(args.data_path)
