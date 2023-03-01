@@ -101,7 +101,7 @@ class FeatureExtractor:
 
 
 class Audio:
-    def __init__(self, observation: Observation, patients: dict, contained_slot: int = 0, r_fs: int = 16000, save_path: str = None):
+    def __init__(self, observation: Observation, patients: dict, contained_slot: int = 0, r_fs: int = 44100, save_path: str = None):
         # Audio section
         self.audio_id: str = observation.contained[contained_slot].id
         self.duration = float(observation.contained[contained_slot].duration)
@@ -123,34 +123,6 @@ class Audio:
 
     def __len__(self):
         return self.duration
-
-    @staticmethod
-    def _compute_SAD(sig, fs, threshold=0.0001, sad_start_end_sil_length=100, sad_margin_length=50):
-        """ Compute threshold based sound activity """
-
-        if sig.shape[0] > 1:
-            sig = sig.mean(dim=0).unsqueeze(0)
-        sig = sig / torch.max(torch.abs(sig))
-        sig = sig / torch.max(torch.abs(sig))
-
-        # Leading/Trailing margin
-        sad_start_end_sil_length = int(sad_start_end_sil_length * 1e-3 * fs)
-        # Margin around active samples
-        sad_margin_length = int(sad_margin_length * 1e-3 * fs)
-
-        sample_activity = np.zeros(sig.shape)
-        sample_activity[np.power(sig, 2) > threshold] = 1
-        sad = np.zeros(sig.shape)
-        for i in range(sample_activity.shape[1]):
-            if sample_activity[0, i] == 1: sad[0, i - sad_margin_length:i + sad_margin_length] = 1
-        sad[0, 0:sad_start_end_sil_length] = 0
-        sad[0, -sad_start_end_sil_length:] = 0
-        return sad
-
-    @staticmethod
-    def resample_audio(audio, sample_rate, resample_rate):
-        return torchaudio.functional.resample(audio, orig_freq=sample_rate,
-                                              new_freq=resample_rate), resample_rate
 
     def _load_audio(self, resample_f: int, save_path: str):
         decode64_data = base64.b64decode(self.data_base64)
@@ -179,7 +151,7 @@ class Audio:
         Extract the relevant metadata (duration, age, gender, audio type,and patient type) from a list of Audios
         :return: a pd.DataFrame with the metadata
         """
-        metadata = {'patient_id': self.patient.id,
+        metadata = {'patient_id': self.patient.audio_id,
                     'patient_type': self.patient.patient_type,
                     'age': self.patient.age,
                     'gender': self.patient.gender,
