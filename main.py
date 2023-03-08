@@ -232,15 +232,14 @@ def update_data(root_path: str = 'dataset_V4') -> bool:
     :param root_path: root path of the data directory
     """
 
-    if check_4_new_data(root_path) or True:
+    if check_4_new_data(root_path):
         print("There are new data.")
-        # observations = download_coperia_observations(root_path)
-        # patients = download_coperia_patients(root_path, observations)
-        # audio_dataset = make_audios_dataset(root_path, observations, patients)
-        # audio_metadata = make_audios_metadata(root_path, audio_dataset)
-        # dicoperia_metadata = make_dicoperia_metadata(root_path, audio_metadata)
-        dicoperia_metadata = pd.read_csv(os.path.join(root_path, 'dicoperia_metadata.csv'), decimal=',')
-        # make_metadata_plots(root_path, dicoperia_metadata)
+        observations = download_coperia_observations(root_path)
+        patients = download_coperia_patients(root_path, observations)
+        audio_dataset = make_audios_dataset(root_path, observations, patients)
+        audio_metadata = make_audios_metadata(root_path, audio_dataset)
+        dicoperia_metadata = make_dicoperia_metadata(root_path, audio_metadata)
+        make_metadata_plots(root_path, dicoperia_metadata)
         make_audios_spectrogram(root_path, dicoperia_metadata)
         make_inference_files(os.path.join(root_path, 'wav_48000kHz'), 'dataset/inference_files', dicoperia_metadata)
         print("Dataset update!")
