@@ -57,7 +57,7 @@ class FFClassificationHead(nn.Module):
             x = self.activation(x)
             x = getattr(self, 'dropout_' + str(i))(x)
         x = self.linearOut(x)
-        return [x[i,] for i in range(x.shape[0])]
+        return [x[i, ] for i in range(x.shape[0])]
 
 
 # LSTM ENCODER classifier

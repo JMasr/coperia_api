@@ -117,7 +117,8 @@ class FeatureExtractor:
         F = None
 
         if 'ComParE_2016' in self.args['feature_type']:
-
+            #
+            s = s[None, :]
             # get a random string
             file_name = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
             while os.path.exists(file_name):
@@ -140,29 +141,29 @@ class FeatureExtractor:
 
             if self.args['feature_type'] == 'ComParE_2016_spectral':
                 feature_subset['subset'] = ['audSpec_Rfilt_sma[0]', 'audSpec_Rfilt_sma[1]', 'audSpec_Rfilt_sma[2]',
-                                            'audSpec_Rfilt_sma[3]',
-                                            'audSpec_Rfilt_sma[4]', 'audSpec_Rfilt_sma[5]', 'audSpec_Rfilt_sma[6]',
-                                            'audSpec_Rfilt_sma[7]', 'audSpec_Rfilt_sma[8]', 'audSpec_Rfilt_sma[9]',
-                                            'audSpec_Rfilt_sma[10]', 'audSpec_Rfilt_sma[11]', 'audSpec_Rfilt_sma[12]',
-                                            'audSpec_Rfilt_sma[13]',
-                                            'audSpec_Rfilt_sma[14]', 'audSpec_Rfilt_sma[15]', 'audSpec_Rfilt_sma[16]',
-                                            'audSpec_Rfilt_sma[17]',
+                                            'audSpec_Rfilt_sma[3]', 'audSpec_Rfilt_sma[4]', 'audSpec_Rfilt_sma[5]',
+                                            'audSpec_Rfilt_sma[6]', 'audSpec_Rfilt_sma[7]', 'audSpec_Rfilt_sma[8]',
+                                            'audSpec_Rfilt_sma[9]', 'audSpec_Rfilt_sma[10]', 'audSpec_Rfilt_sma[11]',
+                                            'audSpec_Rfilt_sma[12]', 'audSpec_Rfilt_sma[13]', 'audSpec_Rfilt_sma[14]',
+                                            'audSpec_Rfilt_sma[15]', 'audSpec_Rfilt_sma[16]','audSpec_Rfilt_sma[17]',
                                             'audSpec_Rfilt_sma[18]', 'audSpec_Rfilt_sma[19]', 'audSpec_Rfilt_sma[20]',
-                                            'audSpec_Rfilt_sma[21]',
-                                            'audSpec_Rfilt_sma[22]', 'audSpec_Rfilt_sma[23]', 'audSpec_Rfilt_sma[24]',
-                                            'audSpec_Rfilt_sma[25]',
+                                            'audSpec_Rfilt_sma[21]', 'audSpec_Rfilt_sma[22]', 'audSpec_Rfilt_sma[23]',
+                                            'audSpec_Rfilt_sma[24]','audSpec_Rfilt_sma[25]',
                                             'pcm_fftMag_fband250-650_sma', 'pcm_fftMag_fband1000-4000_sma',
-                                            'pcm_fftMag_spectralRollOff25.0_sma',
-                                            'pcm_fftMag_spectralRollOff50.0_sma', 'pcm_fftMag_spectralRollOff75.0_sma',
-                                            'pcm_fftMag_spectralRollOff90.0_sma', 'pcm_fftMag_spectralFlux_sma',
-                                            'pcm_fftMag_spectralCentroid_sma', 'pcm_fftMag_spectralEntropy_sma',
-                                            'pcm_fftMag_spectralVariance_sma', 'pcm_fftMag_spectralSkewness_sma',
-                                            'pcm_fftMag_spectralKurtosis_sma', 'pcm_fftMag_spectralSlope_sma',
-                                            'pcm_fftMag_psySharpness_sma', 'pcm_fftMag_spectralHarmonicity_sma',
+                                            'pcm_fftMag_spectralRollOff25.0_sma', 'pcm_fftMag_spectralRollOff50.0_sma',
+                                            'pcm_fftMag_spectralRollOff75.0_sma', 'pcm_fftMag_spectralRollOff90.0_sma',
+                                            'pcm_fftMag_spectralFlux_sma',
+                                            'pcm_fftMag_spectralCentroid_sma',
+                                            'pcm_fftMag_spectralEntropy_sma',
+                                            'pcm_fftMag_spectralVariance_sma',
+                                            'pcm_fftMag_spectralSkewness_sma',
+                                            'pcm_fftMag_spectralKurtosis_sma',
+                                            'pcm_fftMag_spectralSlope_sma',
+                                            'pcm_fftMag_psySharpness_sma',
+                                            'pcm_fftMag_spectralHarmonicity_sma',
                                             'mfcc_sma[1]', 'mfcc_sma[2]', 'mfcc_sma[3]', 'mfcc_sma[4]', 'mfcc_sma[5]',
-                                            'mfcc_sma[6]', 'mfcc_sma[7]', 'mfcc_sma[8]',
-                                            'mfcc_sma[9]', 'mfcc_sma[10]', 'mfcc_sma[11]', 'mfcc_sma[12]',
-                                            'mfcc_sma[13]', 'mfcc_sma[14]']
+                                            'mfcc_sma[6]', 'mfcc_sma[7]', 'mfcc_sma[8]', 'mfcc_sma[9]', 'mfcc_sma[10]',
+                                            'mfcc_sma[11]', 'mfcc_sma[12]','mfcc_sma[13]', 'mfcc_sma[14]']
 
             if self.args['feature_type'] == 'ComParE_2016_mfcc':
                 feature_subset['subset'] = ['mfcc_sma[1]', 'mfcc_sma[2]', 'mfcc_sma[3]', 'mfcc_sma[4]', 'mfcc_sma[5]',
@@ -187,12 +188,18 @@ class FeatureExtractor:
             if self.args['feature_type'] == 'ComParE_2016_basic_spectral':
                 feature_subset['subset'] = ['pcm_fftMag_fband250-650_sma', 'pcm_fftMag_fband1000-4000_sma',
                                             'pcm_fftMag_spectralRollOff25.0_sma',
-                                            'pcm_fftMag_spectralRollOff50.0_sma', 'pcm_fftMag_spectralRollOff75.0_sma',
-                                            'pcm_fftMag_spectralRollOff90.0_sma', 'pcm_fftMag_spectralFlux_sma',
-                                            'pcm_fftMag_spectralCentroid_sma', 'pcm_fftMag_spectralEntropy_sma',
-                                            'pcm_fftMag_spectralVariance_sma', 'pcm_fftMag_spectralSkewness_sma',
-                                            'pcm_fftMag_spectralKurtosis_sma', 'pcm_fftMag_spectralSlope_sma',
-                                            'pcm_fftMag_psySharpness_sma', 'pcm_fftMag_spectralHarmonicity_sma']
+                                            'pcm_fftMag_spectralRollOff50.0_sma',
+                                            'pcm_fftMag_spectralRollOff75.0_sma',
+                                            'pcm_fftMag_spectralRollOff90.0_sma',
+                                            'pcm_fftMag_spectralFlux_sma',
+                                            'pcm_fftMag_spectralCentroid_sma',
+                                            'pcm_fftMag_spectralEntropy_sma',
+                                            'pcm_fftMag_spectralVariance_sma',
+                                            'pcm_fftMag_spectralSkewness_sma',
+                                            'pcm_fftMag_spectralKurtosis_sma',
+                                            'pcm_fftMag_spectralSlope_sma',
+                                            'pcm_fftMag_psySharpness_sma',
+                                            'pcm_fftMag_spectralHarmonicity_sma']
 
             if self.args['feature_type'] == 'ComParE_2016_llds':
                 feature_subset['subset'] = list(F.columns)
@@ -224,6 +231,58 @@ class FeatureExtractor:
 
         if feature_config.get('apply_var_norm', False):
             F = F / torch.std(F, dim=0)
+
+        # own feature selection
+        if self.args.get('extra_feats', False):
+
+            # Make a temporary file to save the audio to
+            file_name = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+            while os.path.exists(file_name):
+                file_name = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+            s = s[None, :]
+            torchaudio.save(file_name + '.wav', s, sample_rate=self.resampling_rate)
+            # Config OpenSMILE
+            feature_subset = {'subset': [
+                # Voicing
+                'F0final_sma', 'voicingFinalUnclipped_sma',
+                'jitterLocal_sma', 'jitterDDP_sma',
+                'shimmerLocal_sma',
+                'logHNR_sma',
+                # Energy
+                'audspec_lengthL1norm_sma',
+                'audspecRasta_lengthL1norm_sma',
+                'pcm_RMSenergy_sma',
+                'pcm_zcr_sma',
+                # Spectral
+                'pcm_fftMag_fband250-650_sma',
+                'pcm_fftMag_fband1000-4000_sma',
+                'pcm_fftMag_spectralRollOff25.0_sma',
+                'pcm_fftMag_spectralRollOff50.0_sma',
+                'pcm_fftMag_spectralRollOff75.0_sma',
+                'pcm_fftMag_spectralRollOff90.0_sma',
+                'pcm_fftMag_spectralFlux_sma',
+                'pcm_fftMag_spectralCentroid_sma',
+                'pcm_fftMag_spectralEntropy_sma',
+                'pcm_fftMag_spectralVariance_sma',
+                'pcm_fftMag_spectralSkewness_sma',
+                'pcm_fftMag_spectralKurtosis_sma',
+                'pcm_fftMag_spectralSlope_sma',
+                'pcm_fftMag_psySharpness_sma',
+                'pcm_fftMag_spectralHarmonicity_sma'
+            ]}
+            extra_transform = opensmile.Smile(feature_set=opensmile.FeatureSet.ComParE_2016,
+                                              feature_level=opensmile.FeatureLevel.LowLevelDescriptors,
+                                              sampling_rate=self.resampling_rate)
+            # Extract features
+            F_extra = extra_transform.process_file(file_name + '.wav')
+            F_extra = F_extra[feature_subset['subset']].to_numpy()
+            F_extra = np.nan_to_num(F_extra)
+            F_extra = torch.from_numpy(F_extra).T
+            # Concatenate the features
+            common_shape = min(F.shape[1], F_extra.shape[1])
+            F = torch.cat((F[:, :common_shape], F_extra[:, :common_shape]), dim=0)
+            # Remove the temporary file
+            os.remove(file_name + '.wav')
 
         return F.T
 
@@ -517,40 +576,61 @@ def make_train_test_subsets(metadata: pd.DataFrame, test_size: float = 0.2, rand
     return audio_train, audio_test, audio_label_train, audio_label_test
 
 
-def make_dicoperia_metadata(save_path: str, metadata: pd.DataFrame, filters_: dict) -> pd.DataFrame:
+def make_dicoperia_metadata(save_path: str, metadata: pd.DataFrame, filters_: dict = None, remove_samples: dict = None):
     """
     Make a metadata file for the COPERIA dataset filtering some columns
     :param save_path: path to save the metadata file
     :param metadata: a list with all the audio samples in COPERIA as an Audio class
-    :param filters_: a dictionary with the columns and values to filter
+    :param filters_: a dictionary with the columns and values to keep
+    :param remove_samples: a dictionary with the columns and values to remove
     :return: a pandas dataframe with the metadata of the DICOPERIA dataset
     """
     print('=== Filtering the metadata... ===')
-
     df = metadata.copy()
-    for key, values in filters_.items():
+
+    if filters_ is None:
+        filters_ = {'patient_type': ['covid-control', 'covid-persistente']}
+
+    if remove_samples is None:
+        remove_samples = {'audio_id': ['c15e54fc-5290-4652-a3f7-ff3b779bd980', '244b61cc-4fd7-4073-b0d8-7bacd42f6202'],
+                          'patient_id': ['coperia-rehab']}
+
+    for key, values in remove_samples.items():
         df = df[~df[key].isin(values)]
 
+    for key, values in filters_.items():
+        df = df[df[key].isin(values)]
+
+    df.replace(['covid-control', 'covid-persistente'], [0, 1], inplace=True)
     df.to_csv(save_path, index=False, decimal=',')
     print('Metadata saved in: {}'.format(save_path))
     print('=== Filtering DONE!! ===\n')
-    df.replace(['covid-control', 'covid-persistente'], [0, 1], inplace=True)
     return df
 
 
 if __name__ == "__main__":
     # Define important paths
-
-    wav_path = '/home/jsanhcez/Documentos/Proyectos/99_to_do_COPERIA/repos/coperia_api/dataset_dicoperia/wav_48000kHz/'
-    metadata_path = '/home/jsanhcez/Documentos/Proyectos/99_to_do_COPERIA/repos/coperia_api/dataset_dicoperia/metadata_dicoperia.csv'
+    root_path = '/home/jsanhcez/Documentos/Proyectos/99_to_do_COPERIA/repos/coperia_api/'
+    data_path = os.path.join(root_path, 'dataset_dicoperia/')
+    wav_path = os.path.join(data_path, 'wav_48000kHz/')
+    metadata_path = os.path.join(data_path, 'metadata_dicoperia.csv')
     # Data filters
-    all_filters = {'audio_id': ['c15e54fc-5290-4652-a3f7-ff3b779bd980', '244b61cc-4fd7-4073-b0d8-7bacd42f6202'],
-                   'patient_type': ['coperia-rehab'],
-                   'audio_type': ['/a/'],
-                   'audio_moment': ['after']}
+    all_filters = [{'audio_type': ['/a/'],
+                    'audio_moment': ['before']},
+                   #
+                   {'audio_type': ['/a/'],
+                    'audio_moment': ['after']},
+                   #
+                   {'audio_type': ['/cough/'],
+                    'audio_moment': ['before']},
+                   #
+                   {'audio_type': ['/cough/'],
+                    'audio_moment': ['after']},
+                   ]
 
     # Feature configuration
     feature_config = {'feature_type': 'MFCC',
+                      'extra_feats': True,
                       'resampling_rate': 44100,
                       'n_mels': 64,
                       'n_mfcc': 32,
@@ -563,7 +643,7 @@ if __name__ == "__main__":
                       'compute_delta_deltas': True}
 
     # Models configurations
-    seed = int(abs(hash(str(feature_config)))/1e12)
+    seed = int(abs(hash(str(feature_config))) / 1e12)
     ALL_MODELS = {'LogisticRegression': {'c': 0.01,
                                          'max_iter': 40,
                                          'solver': 'liblinear',
@@ -592,10 +672,15 @@ if __name__ == "__main__":
     exp_model = ['LogisticRegression', 'RandomForest', 'MLP', 'LinearSVM']
 
     # Run the experiments
-    results_path = f'/home/jsanhcez/Documentos/Proyectos/99_to_do_COPERIA/repos/coperia_api/results_{seed}/'
-    feature_config['output_path'] = results_path
-    for m in exp_model:
-        print('================================' + '='*len(m))
-        print(f'Running experiment with model: {m}')
-        print('--------------------------------' + '-'*len(m))
-        run_exp(metadata_path, wav_path, results_path, all_filters, feature_config, m, ALL_MODELS, seed)
+    for exp_filter in all_filters:
+        print('================================' + '=' * len(str(exp_filter)))
+        print(f'Running experiment with filter: {exp_filter}')
+        print('--------------------------------' + '-' * len(str(exp_filter)))
+
+        results_path = os.path.join(root_path, f'results_{feature_config["feature_type"]}_{exp_filter["audio_type"][0].replace(r"/","")}_{exp_filter["audio_moment"][0]}_{seed}/')
+        feature_config['output_path'] = results_path
+        for m in exp_model:
+            print('================================' + '=' * len(m))
+            print(f'Running experiment with model: {m}')
+            print('--------------------------------' + '-' * len(m))
+            run_exp(metadata_path, wav_path, results_path, exp_filter, feature_config, m, ALL_MODELS, seed)

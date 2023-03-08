@@ -367,8 +367,8 @@ def struct_spectrogram(metadata_: pd.DataFrame, spectrogram_path: str):
         spect_name = spect_name.split('.')[0]
 
         spect_task = 'a' if df[df.eq(spect_name).any(1)].audio_type.eq('/a/').sum() else 'cough'
-        spect_population = 'covid-control' if df[df.eq(spect_name).any(1)].patient_type.eq(
-            'covid-control').sum() else 'covid-persistente'
+        spect_population = '0' if df[df.eq(spect_name).any(1)].patient_type.eq(
+            '0').sum() else '1'
 
         new_location = f'{spectrogram_path}/{spect_population}/{spect_task}/{spect_name}.png'
         if not os.path.exists(new_location):

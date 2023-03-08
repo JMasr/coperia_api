@@ -1,6 +1,7 @@
 import argparse
 import os.path
 
+import pandas as pd
 from tqdm import tqdm
 
 from src.data import CoperiaMetadata
@@ -84,8 +85,8 @@ def make_metadata_plots(root_path: str, metadata: pd.DataFrame):
     :param metadata: a list with all the audio samples as an Audio class
     """
     print('Making metadata...')
-    coperia_metadata_control = metadata[metadata['patient_type'] == 'covid-control']
-    coperia_metadata_persistente = metadata[metadata['patient_type'] == 'covid-persistente']
+    coperia_metadata_control = metadata[metadata['patient_type'] == 0]
+    coperia_metadata_persistente = metadata[metadata['patient_type'] == 1]
     print('Making plots...')
     plot_all_data([metadata, coperia_metadata_control, coperia_metadata_persistente],
                   [os.path.join(root_path, 'figures_all'),
@@ -93,23 +94,35 @@ def make_metadata_plots(root_path: str, metadata: pd.DataFrame):
                    os.path.join(root_path, 'figures_persistente')])
 
 
-def make_dicoperia_metadata(root_path: str, metadata: pd.DataFrame, filter: dict = None) -> pd.DataFrame:
+def make_dicoperia_metadata(save_path: str, metadata: pd.DataFrame, filters_: dict = None, remove_samples: dict = None):
     """
     Make a metadata file for the COPERIA dataset filtering some columns
-    :param root_path: root path of the data directory
+    :param save_path: path to save the metadata file
     :param metadata: a list with all the audio samples in COPERIA as an Audio class
-    :param filter: a dictionary with the columns and values to filter
+    :param filters_: a dictionary with the columns and values to keep
+    :param remove_samples: a dictionary with the columns and values to remove
     :return: a pandas dataframe with the metadata of the DICOPERIA dataset
     """
-    print('Making dicoperia metadata...')
-    if filter is None:
-        filter = {'audio_id': ['c15e54fc-5290-4652-a3f7-ff3b779bd980', '244b61cc-4fd7-4073-b0d8-7bacd42f6202'],
-                  'patient_type': ['coperia-rehab']}
-
+    print('=== Filtering the metadata... ===')
     df = metadata.copy()
-    for key, values in filter.items():
+
+    if filters_ is None:
+        filters_ = {'patient_type': ['covid-control', 'covid-persistente']}
+
+    if remove_samples is None:
+        remove_samples = {'audio_id': ['c15e54fc-5290-4652-a3f7-ff3b779bd980', '244b61cc-4fd7-4073-b0d8-7bacd42f6202'],
+                          'patient_id': ['coperia-rehab']}
+
+    for key, values in remove_samples.items():
         df = df[~df[key].isin(values)]
-    df.to_csv(os.path.join(root_path, 'metadata.csv'), index=False, decimal=',')
+
+    for key, values in filters_.items():
+        df = df[df[key].isin(values)]
+
+    # df.replace(['covid-control', 'covid-persistente'], [0, 1], inplace=True)
+    df.to_csv(os.path.join(save_path, 'dicoperia_metadata.csv'), index=False, decimal=',')
+    print('Metadata saved in: {}'.format(save_path))
+    print('=== Filtering DONE!! ===\n')
     return df
 
 
@@ -121,9 +134,7 @@ def make_audios_metadata(root_path: str, audios_dataset: list) -> pd.DataFrame:
     :return: a pandas.DataFrame with the audio dataset metadata
     """
     audios_metadata = CoperiaMetadata(audios_dataset).metadata
-
-    metadata_path = os.path.join(root_path, 'coperia_metadata')
-    audios_metadata.to_csv(metadata_path, decimal=',', index=False)
+    audios_metadata.to_csv(os.path.join(root_path, 'coperia_metadata.csv'), decimal=',', index=False)
     return audios_metadata
 
 
@@ -223,12 +234,13 @@ def update_data(root_path: str = 'dataset_V4') -> bool:
 
     if check_4_new_data(root_path) or True:
         print("There are new data.")
-        observations = download_coperia_observations(root_path)
-        patients = download_coperia_patients(root_path, observations)
-        audio_dataset = make_audios_dataset(root_path, observations, patients)
-        audio_metadata = make_audios_metadata(root_path, audio_dataset)
-        dicoperia_metadata = make_dicoperia_metadata(root_path, audio_metadata)
-        make_metadata_plots(root_path, dicoperia_metadata)
+        # observations = download_coperia_observations(root_path)
+        # patients = download_coperia_patients(root_path, observations)
+        # audio_dataset = make_audios_dataset(root_path, observations, patients)
+        # audio_metadata = make_audios_metadata(root_path, audio_dataset)
+        # dicoperia_metadata = make_dicoperia_metadata(root_path, audio_metadata)
+        dicoperia_metadata = pd.read_csv(os.path.join(root_path, 'dicoperia_metadata.csv'), decimal=',')
+        # make_metadata_plots(root_path, dicoperia_metadata)
         make_audios_spectrogram(root_path, dicoperia_metadata)
         make_inference_files(os.path.join(root_path, 'wav_48000kHz'), 'dataset/inference_files', dicoperia_metadata)
         print("Dataset update!")

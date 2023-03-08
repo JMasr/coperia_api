@@ -151,7 +151,7 @@ class Audio:
         Extract the relevant metadata (duration, age, gender, audio type,and patient type) from a list of Audios
         :return: a pd.DataFrame with the metadata
         """
-        metadata = {'patient_id': self.patient.audio_id,
+        metadata = {'patient_id': self.patient.id,
                     'patient_type': self.patient.patient_type,
                     'age': self.patient.age,
                     'gender': self.patient.gender,
