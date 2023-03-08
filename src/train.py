@@ -1,3 +1,4 @@
+import argparse
 import json
 import os
 import pickle
@@ -359,7 +360,7 @@ def score_sklearn(model_, test_data: list, path_wav: str, path_to_save: str) -> 
         F = FE.extract(os.path.join(path_wav, audio_id + '.wav'))
 
         # Predict
-        if exp_model == 'LSTMclassifier':
+        if model_name == 'LSTMclassifier':
             with torch.no_grad():
                 feat = F.to('cpu')
                 output_score = model_.predict_proba(feat)
@@ -619,8 +620,12 @@ def save_config_as_json(config: dict, path: str):
 
 
 if __name__ == "__main__":
+    # Parse arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--root_path', type=str, default='/home/jsanhcez/Documentos/Proyectos/99_to_do_COPERIA/repos/coperia_api/')
+    args = parser.parse_args()
     # Define important paths
-    root_path = '/home/jsanhcez/Documentos/Proyectos/99_to_do_COPERIA/repos/coperia_api/'
+    root_path = args.root_path
     data_path = os.path.join(root_path, 'dataset_dicoperia/')
     wav_path = os.path.join(data_path, 'wav_48000kHz/')
     metadata_path = os.path.join(data_path, 'metadata_dicoperia.csv')
