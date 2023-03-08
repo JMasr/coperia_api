@@ -1,0 +1,41 @@
+{
+    "LogisticRegression": {
+                            "c": 0.01,
+                            "max_iter": 40,
+                            "solver": "liblinear",
+                            "penalty": "l2",
+                            "class_weight": "balanced",
+                            "random_state": 3128881,
+                            "verbose": true
+    },
+    "RandomForest": {
+                        "n_estimators": 20,
+                        "criterion": "gini",
+                        "max_depth": null,
+                        "min_samples_split": 2,
+                        "min_samples_leaf": 1,
+                        "max_features": "sqrt",
+                        "class_weight": "balanced",
+                        "random_state": 3128881,
+                        "verbose": true
+    },
+    "MLP": {
+            "learning_rate_init": 0.001,
+            "alpha": 0.001,
+            "solver": "adam",
+            "hidden_layer_sizes": [20, 20],
+            "max_iter": 500,
+            "activation": "tanh",
+            "class_weight": "balanced",
+            "random_state": 3128881,
+            "verbose": true
+    },
+    "LinearSVM": {
+                    "c": 1,
+                    "tol": 0.0001,
+                    "max_iter": 1000,
+                    "class_weight": "balanced",
+                    "random_state": 3128881,
+                    "verbose": true
+    }
+}

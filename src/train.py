@@ -608,6 +608,16 @@ def make_dicoperia_metadata(save_path: str, metadata: pd.DataFrame, filters_: di
     return df
 
 
+def load_config_from_json(path: str):
+    with open(path, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+
+def save_config_as_json(config: dict, path: str):
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(config, f, ensure_ascii=False, indent=4)
+
+
 if __name__ == "__main__":
     # Define important paths
     root_path = '/home/jsanhcez/Documentos/Proyectos/99_to_do_COPERIA/repos/coperia_api/'
@@ -615,61 +625,13 @@ if __name__ == "__main__":
     wav_path = os.path.join(data_path, 'wav_48000kHz/')
     metadata_path = os.path.join(data_path, 'metadata_dicoperia.csv')
     # Data filters
-    all_filters = [{'audio_type': ['/a/'],
-                    'audio_moment': ['before']},
-                   #
-                   {'audio_type': ['/a/'],
-                    'audio_moment': ['after']},
-                   #
-                   {'audio_type': ['/cough/'],
-                    'audio_moment': ['before']},
-                   #
-                   {'audio_type': ['/cough/'],
-                    'audio_moment': ['after']},
-                   ]
-
+    all_filters = load_config_from_json(os.path.join(root_path, 'config', 'filter_config.json'))
     # Feature configuration
-    feature_config = {'feature_type': 'MFCC',
-                      'extra_feats': True,
-                      'resampling_rate': 44100,
-                      'n_mels': 64,
-                      'n_mfcc': 32,
-                      'f_max': 22050,
-                      'window_size': 25.0,
-                      'hop_length': 10.0,
-                      'apply_mean_norm': True,
-                      'apply_var_norm': True,
-                      'compute_deltas': True,
-                      'compute_delta_deltas': True}
+    feature_config = load_config_from_json(os.path.join(root_path, 'config', 'feature_config.json'))
 
     # Models configurations
     seed = int(abs(hash(str(feature_config))) / 1e12)
-    ALL_MODELS = {'LogisticRegression': {'c': 0.01,
-                                         'max_iter': 40,
-                                         'solver': 'liblinear',
-                                         'penalty': 'l2',
-                                         'class_weight': 'balanced', 'random_state': seed, 'verbose': True},
-                  'RandomForest': {'n_estimators': 20,
-                                   'criterion': 'gini',
-                                   'max_depth': None,
-                                   'min_samples_split': 2,
-                                   'min_samples_leaf': 1,
-                                   'max_features': 'sqrt',
-                                   'class_weight': 'balanced', 'random_state': seed, 'verbose': True},
-                  'MLP': {'learning_rate_init': 0.001,
-                          'alpha': 0.001,
-                          'solver': 'adam',
-                          'hidden_layer_sizes': [20, 20],
-                          'max_iter': 500,
-                          'activation': 'tanh',
-                          'class_weight': 'balanced', 'random_state': seed, 'verbose': True},
-                  'LinearSVM': {'c': 1,
-                                'tol': 1e-4,
-                                'max_iter': 1000,
-                                'class_weight': 'balanced', 'random_state': seed, 'verbose': True}
-                  }
-    # Define the models to be used
-    exp_model = ['LogisticRegression', 'RandomForest', 'MLP', 'LinearSVM']
+    all_models = load_config_from_json(os.path.join(root_path, 'config', 'models_config.json'))
 
     # Run the experiments
     for exp_filter in all_filters:
@@ -679,8 +641,8 @@ if __name__ == "__main__":
 
         results_path = os.path.join(root_path, f'results_{feature_config["feature_type"]}_{exp_filter["audio_type"][0].replace(r"/","")}_{exp_filter["audio_moment"][0]}_{seed}/')
         feature_config['output_path'] = results_path
-        for m in exp_model:
+        for m in all_models.keys():
             print('================================' + '=' * len(m))
             print(f'Running experiment with model: {m}')
             print('--------------------------------' + '-' * len(m))
-            run_exp(metadata_path, wav_path, results_path, exp_filter, feature_config, m, ALL_MODELS, seed)
+            run_exp(metadata_path, wav_path, results_path, exp_filter, feature_config, m, all_models, seed)

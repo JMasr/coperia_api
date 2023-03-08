@@ -1,0 +1,18 @@
+[
+    {
+        "audio_type": ["/a/"],
+        "audio_moment": ["before"]
+    },
+    {
+        "audio_type": ["/a/"],
+        "audio_moment": ["after"]
+    },
+    {
+        "audio_type": ["/cough/"],
+        "audio_moment": ["before"]
+    },
+    {
+        "audio_type": ["/cough/"],
+        "audio_moment": ["after"]
+    }
+]
