@@ -213,7 +213,7 @@ class FeatureExtractor:
             F = self.feature_transform(s)
 
         if self.args['feature_type'] == 'logMelSpec':
-            F = self.feature_transform(s, fs)
+            F = self.feature_transform(s)
             F = torchaudio.functional.amplitude_to_DB(F, multiplier=10, amin=1e-10, db_multiplier=0)
 
         if self.args['feature_type'] == 'MFCC':
@@ -227,10 +227,10 @@ class FeatureExtractor:
                 FDD = torchaudio.functional.compute_deltas(FD)
                 F = torch.cat((F, FDD), dim=0)
 
-        if feature_config.get('apply_mean_norm', False):
+        if self.args.get('apply_mean_norm', False):
             F = F - torch.mean(F, dim=0)
 
-        if feature_config.get('apply_var_norm', False):
+        if self.args.get('apply_var_norm', False):
             F = F / torch.std(F, dim=0)
 
         # own feature selection
