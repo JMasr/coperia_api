@@ -85,8 +85,8 @@ def make_metadata_plots(root_path: str, metadata: pd.DataFrame):
     :param metadata: a list with all the audio samples as an Audio class
     """
     print('Making metadata...')
-    coperia_metadata_control = metadata[metadata['patient_type'] == 0]
-    coperia_metadata_persistente = metadata[metadata['patient_type'] == 1]
+    coperia_metadata_control = metadata[metadata['patient_type'] == 'covid-control']
+    coperia_metadata_persistente = metadata[metadata['patient_type'] == 'covid-persistente']
     print('Making plots...')
     plot_all_data([metadata, coperia_metadata_control, coperia_metadata_persistente],
                   [os.path.join(root_path, 'figures_all'),
