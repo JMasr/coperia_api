@@ -11,6 +11,9 @@ import matplotlib.pyplot as plt
 def run_exploration(path_data_: str, path_wav_: str, path_results_: str, filters: dict, feature_config_: dict,
                     random_state: int = 42):
     # Check and create the directory to save the experiment
+    exp_name = f'exploration_{feature_config_["feature_type"]}_plus_{feature_config_["extra_feats"]}_' \
+               f'{filters["audio_type"][0].replace(r"/","")}_{filters["audio_moment"][0]}'
+    path_results_ = os.path.join(path_results_, exp_name)
     os.makedirs(path_results_, exist_ok=True)
 
     # Define the data to be used
@@ -101,5 +104,15 @@ if __name__ == "__main__":
     # Feature configuration
     feature_config = load_config_from_json(os.path.join(root_path, 'config', 'feature_config.json'))
 
-    # Run exploration
-    run_exploration(metadata_path, wav_path, results_path, all_filters[0], feature_config)
+    # Run explorations
+    all_feats = ['MFCC', 'MelSpec', 'logMelSpec',
+                 'ComParE_2016_voicing', 'ComParE_2016_energy', 'ComParE_2016_basic_spectral', 'ComParE_2016_spectral',
+                 'ComParE_2016_mfcc', 'ComParE_2016_rasta']
+    extra_feats = [True, False]
+
+    for feat in all_feats:
+        for extra in extra_feats:
+            feature_config['feature_type'] = feat
+            feature_config['extra_features'] = extra
+            for f in all_filters:
+                run_exploration(metadata_path, wav_path, results_path, f, feature_config)
