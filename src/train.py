@@ -230,7 +230,7 @@ class FeatureExtractor:
             F = F / torch.std(F, dim=0)
 
         # own feature selection
-        if self.args.get('extra_feats', False) and 'ComParE_2016' not in self.args['feature_type']:
+        if self.args.get('extra_features', False) and 'ComParE_2016' not in self.args['feature_type']:
 
             # Make a temporary file to save the audio to
             file_name = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
@@ -297,7 +297,7 @@ class FeatureExtractor:
 def run_exp(path_data_: str, path_wav_: str, path_results_: str, filters: dict, feature_config_: dict, model_name: str,
             models: dict, random_state: int = 42):
     # Check and create the directory to save the experiment
-    exp_name = f'results_{feature_config_["feature_type"]}_plus-{feature_config_["extra_feats"]}_' \
+    exp_name = f'results_{feature_config_["feature_type"]}_plus-{feature_config_["extra_features"]}_' \
                f'{filters["audio_type"][0].replace(r"/", "")}_{filters["audio_moment"][0]}_seed-{random_state}'
     exp_name = os.path.join(path_results_, exp_name)
 
@@ -692,13 +692,13 @@ if __name__ == "__main__":
                      'ComParE_2016_spectral',
                      'ComParE_2016_mfcc', 'ComParE_2016_rasta',
                      'MFCC', 'MelSpec', 'logMelSpec']
-        extra_feats = [True, False]
+        extra_features = [True, False]
         for feat in all_feats:
             feats_config['feature_type'] = feat
             if 'ComParE_2016' in feat:
-                extra_feats = [False]
+                extra_features = [False]
 
-            for extra in extra_feats:
+            for extra in extra_features:
                 feats_config['extra_features'] = extra
 
                 # Select the model

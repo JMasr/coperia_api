@@ -1,6 +1,6 @@
 {
     "feature_type": "MFCC",
-    "extra_feats": true,
+    "extra_features": true,
     "resampling_rate": 44100,
     "n_mels": 64,
     "n_mfcc": 32,
