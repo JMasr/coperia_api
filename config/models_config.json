@@ -5,7 +5,6 @@
                             "solver": "liblinear",
                             "penalty": "l2",
                             "class_weight": "balanced",
-                            "random_state": 3128881,
                             "verbose": true
     },
     "RandomForest": {
@@ -16,7 +15,6 @@
                         "min_samples_leaf": 1,
                         "max_features": "sqrt",
                         "class_weight": "balanced",
-                        "random_state": 3128881,
                         "verbose": true
     },
     "MLP": {
@@ -27,7 +25,6 @@
             "max_iter": 500,
             "activation": "tanh",
             "class_weight": "balanced",
-            "random_state": 3128881,
             "verbose": true
     },
     "LinearSVM": {
@@ -35,7 +32,6 @@
                     "tol": 0.0001,
                     "max_iter": 1000,
                     "class_weight": "balanced",
-                    "random_state": 3128881,
                     "verbose": true
     }
 }
