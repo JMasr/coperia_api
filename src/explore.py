@@ -10,13 +10,13 @@ import matplotlib.pyplot as plt
 def run_exploration(path_data_: str, path_wav_: str, path_results_: str, filters: dict, feature_config_: dict,
                     random_state: int = 42):
     # Check and create the directory to save the experiment
-    exp_name = f'exploration_{feature_config_["feature_type"]}_plus_{feature_config_["extra_feats"]}_' \
+    exp_name = f'exploration_{feature_config_["feature_type"]}_plus_{feature_config_["extra_features"]}_' \
                f'{filters["audio_type"][0].replace(r"/", "")}_{filters["audio_moment"][0]}'
     path_results_ = os.path.join(path_results_, exp_name)
     os.makedirs(path_results_, exist_ok=True)
     print(f"Making the exploration of the data:"
           f" *Feature type: {feature_config_['feature_type']}"
-          f" *Extra feats: {feature_config_['extra_feats']}"
+          f" *Extra feats: {feature_config_['extra_features']}"
           f" *Audio type: {filters['audio_type'][0]}"
           f" *Audio moment: {filters['audio_moment'][0]}")
 
