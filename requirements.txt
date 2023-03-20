@@ -13,3 +13,4 @@ tqdm~=4.62.3
 sklearn~=0.0
 opensmile~=2.4.2
 scikit-learn~=0.24.2
+mlflow~=1.23.1

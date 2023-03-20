@@ -5,6 +5,7 @@ import pickle
 import random
 import string
 
+import mlflow
 import torch
 import torchaudio
 import opensmile
@@ -219,7 +220,7 @@ class FeatureExtractor:
             FD = torchaudio.functional.compute_deltas(F)
             F = torch.cat((F, FD), dim=0)
 
-            if self.args.get('compute_delta_deltas', False):
+            if self.args.get('compute_deltas_deltas', False):
                 FDD = torchaudio.functional.compute_deltas(FD)
                 F = torch.cat((F, FDD), dim=0)
 
@@ -294,11 +295,22 @@ class FeatureExtractor:
         return self._do_feature_extraction(s)
 
 
-def run_exp(path_data_: str, path_wav_: str, path_results_: str, filters: dict, feature_config_: dict, model_name: str,
-            models: dict, random_state: int = 42):
+def run_exp(path_data_: str, path_wav_: str, path_results_: str, filters: dict, feature_config_: dict,
+            model_name: str, seed: int = 42):
+    """
+    Run a experiment with the given parameters
+    :param path_data_: path to the metadata file
+    :param path_wav_: path to the wav files
+    :param path_results_: path to the results
+    :param filters: filters to be applied to the metadata
+    :param feature_config_: configuration of the features
+    :param model_name: name of the model to be used
+    :param seed: seed to be used
+    :return: The trained model and the scores of the experiment
+    """
     # Check and create the directory to save the experiment
     exp_name = f'results_{feature_config_["feature_type"]}_plus-{feature_config_["extra_features"]}_' \
-               f'{filters["audio_type"][0].replace(r"/", "")}_{filters["audio_moment"][0]}_seed-{random_state}'
+               f'{filters["audio_type"][0].replace(r"/", "")}_{filters["audio_moment"][0]}_seed-{seed}'
     exp_name = os.path.join(path_results_, exp_name)
 
     os.makedirs(exp_name, exist_ok=True)
@@ -311,39 +323,39 @@ def run_exp(path_data_: str, path_wav_: str, path_results_: str, filters: dict, 
     exp_metadata = make_dicoperia_metadata(path_exp_metadata, dicoperia_metadata, filters)
     # Make the subsets
     sample_gain_testing = 0.2
-    train, test, label_train, label_test = make_train_test_subsets(exp_metadata, sample_gain_testing, random_state)
+    train, test, label_train, label_test = make_train_test_subsets(exp_metadata, sample_gain_testing, seed)
 
     # Make the features
     if not os.path.exists(os.path.join(path_results_, f'train_feats_{feature_config_["feature_type"]}'
-                                                      f'_{feature_config_["extra_features"]}_{random_state}.npy')):
+                                                      f'_{feature_config_["extra_features"]}_{seed}.npy')):
         train_feats, train_labels = make_feats(path_wav_, train, label_train, feature_config_)
         # Save the train features
         np.save(os.path.join(path_results_, f'train_feats_{feature_config_["feature_type"]}'
-                                            f'_{feature_config_["extra_features"]}_{random_state}.npy'), train_feats)
+                                            f'_{feature_config_["extra_features"]}_{seed}.npy'), train_feats)
         np.save(os.path.join(path_results_, f'train_labels_{feature_config_["feature_type"]}'
-                                            f'_{feature_config_["extra_features"]}_{random_state}.npy'), train_labels)
+                                            f'_{feature_config_["extra_features"]}_{seed}.npy'), train_labels)
     else:
         print("Loading training feats from disk...")
         train_feats = np.load(os.path.join(path_results_, f'train_feats_{feature_config_["feature_type"]}'
-                                                          f'_{feature_config_["extra_features"]}_{random_state}.npy'))
+                                                          f'_{feature_config_["extra_features"]}_{seed}.npy'))
         train_labels = np.load(os.path.join(path_results_, f'train_labels_{feature_config_["feature_type"]}_'
-                                                           f'{feature_config_["extra_features"]}_{random_state}.npy'))
+                                                           f'{feature_config_["extra_features"]}_{seed}.npy'))
 
     if not os.path.exists(os.path.join(path_results_, f'test_feats_{feature_config_["feature_type"]}'
-                                                      f'_{feature_config_["extra_features"]}_{random_state}.npy')):
+                                                      f'_{feature_config_["extra_features"]}_{seed}.npy')):
         test_feats, test_label = make_test_feats(path_results_, path_wav_, [test, label_test], feature_config_)
         # Save the test features
         np.save(os.path.join(path_results_, f'test_feats_{feature_config_["feature_type"]}'
-                                            f'_{feature_config_["extra_features"]}_{random_state}.npy'), test_feats)
+                                            f'_{feature_config_["extra_features"]}_{seed}.npy'), test_feats)
         np.save(os.path.join(path_results_, f'test_labels_{feature_config_["feature_type"]}_'
-                                            f'{feature_config_["extra_features"]}_{random_state}.npy'), test_label)
+                                            f'{feature_config_["extra_features"]}_{seed}.npy'), test_label)
     else:
         print("Loading testing feats from disk...")
         test_feats = np.load(os.path.join(path_results_, f'test_feats_{feature_config_["feature_type"]}'
-                                                         f'_{feature_config_["extra_features"]}_{random_state}.npy'),
+                                                         f'_{feature_config_["extra_features"]}_{seed}.npy'),
                              allow_pickle=True)
         test_label = np.load(os.path.join(path_results_, f'test_labels_{feature_config_["feature_type"]}_'
-                                                         f'{feature_config_["extra_features"]}_{random_state}.npy'),
+                                                         f'{feature_config_["extra_features"]}_{seed}.npy'),
                              allow_pickle=True)
 
     # Train the model
@@ -352,7 +364,7 @@ def run_exp(path_data_: str, path_wav_: str, path_results_: str, filters: dict, 
         # Create the directory to save the results
         os.makedirs(path_model, exist_ok=True)
         # Configure the model
-        model, x_train, y_train = config_model(model_name, models, train_feats, train_labels, random_state)
+        model, x_train, y_train = config_model(model_name, train_feats, train_labels, seed)
         # Train the model
         model.fit(x_train, y_train)
         # Save the model
@@ -364,22 +376,65 @@ def run_exp(path_data_: str, path_wav_: str, path_results_: str, filters: dict, 
     # Calculate the performance metrics using sklearn
     score_path = os.path.join(path_model, f'{model_name}_scores.pkl')
     all_scores = score_sklearn(model, test_feats, test_label, score_path)
-    return all_scores
+    return model, all_scores
 
 
-def score_sklearn(model_, test_feats: list, test_label: list, path_to_save: str) -> dict:
+def mlflow_run(path_data: str, path_wav: str, path_results: str, filters: dict, feature_config: dict,
+               model_name: str, seed: int, tracking_uri: str):
     """
-    Calculate the performance metrics using sklearn
-    :param model_: a model trained using for inference
+    Run the experiment using mlruns to track the results
+    :param path_data: Path to the metadata of the DICOPERIA dataset
+    :param path_wav: Path to the wav files of the DICOPERIA dataset
+    :param path_results: Path to save the results
+    :param filters: A dictionary of filters to be used in the experiment
+    :param feature_config: A dictionary of features to be used in the experiment
+    :param model_name: Name of the model to be used
+    :param seed: Random state to be used in the experiment
+    :param tracking_uri: Path to save the mlflow results
+    :return: None
+    """
+    # Define the experiment
+
+    if not os.path.exists(tracking_uri):
+        os.makedirs(tracking_uri, exist_ok=True)
+
+    mlflow.set_tracking_uri("http://0.0.0.0:5000/")
+    mlflow.set_experiment(f'{feature_config["feature_type"]}_{feature_config["extra_features"]}_'
+                          f'{filters["audio_type"][0].replace(r"/", "")}_{filters["audio_moment"][0]}_'
+                          f'seed-{seed}')
+    with mlflow.start_run(run_name=f'{model_name}_seed-{seed}'):
+        # Log the parameters
+        mlflow.log_params(filters)
+        mlflow.log_params(feature_config)
+        mlflow.log_param('model', model_name)
+        mlflow.log_param('model_arguments', MODELS[f'{model_name}'])
+        mlflow.log_param('random_state', seed)
+
+        # Run the experiment
+        model, all_scores = run_exp(path_data, path_wav, path_results, filters, feature_config, model_name, seed)
+
+        # Log the metrics
+        mlflow_metric = {k: v for k, v in all_scores.items() if isinstance(v, (int, float))}
+        mlflow.log_metrics(mlflow_metric)
+
+        # Save the model
+        model_dev_name = f'{model_name}_{seed}_{feature_config["feature_type"]}_{all_scores["auc_score"]:0.2f}'
+        mlflow.sklearn.log_model(model, model_dev_name)
+
+
+def score_sklearn(model_trained, test_feats: list, test_label: list, path_to_save: str) -> dict:
+    """
+    Calculate a set of performance metrics using sklearn
+    :param model_trained: a model trained using for inference
     :param test_feats: a list of test feats
     :param test_label: a list of test labels
     :param path_to_save: Path to save the results
     :return: a set of performance metrics: confusion matrix, f1 score, f-beta score, precision, recall, and auc score
     """
-    model_name = model_.__class__.__name__
+    model_name = model_trained.__class__.__name__
     # Start testing
     y_feats, y_true = test_feats, test_label
-    y_score = make_prediction(model_, model_name, y_feats)
+    y_score = make_prediction(model_trained, model_name, y_feats)
 
     # Calculate the auc_score, FP-rate, and TP-rate
     sklearn_roc_auc_score = roc_auc_score(y_true, y_score)
@@ -466,7 +521,14 @@ def score_sklearn(model_, test_feats: list, test_label: list, path_to_save: str)
     return dict_scores
 
 
-def make_prediction(model_, model_name, y_feats):
+def make_prediction(model, model_name: str, y_feats: list) -> list:
+    """
+    Function to make prediction using a model
+    @param model: A model to make prediction
+    @param model_name: Type of the model
+    @param y_feats: A list of features to make prediction
+    @return: A list of prediction scores
+    """
     # Predict the scores
     y_score = []
     for feat_ in tqdm(y_feats, total=len(y_feats)):
@@ -474,10 +536,10 @@ def make_prediction(model_, model_name, y_feats):
         if model_name == 'LSTMclassifier':
             with torch.no_grad():
                 feat_ = feat_.to('cpu')
-                output_score = model_.predict_proba(feat_)
+                output_score = model.predict_proba(feat_)
                 output_score = sum(output_score)[0].item() / len(output_score)
         else:
-            output_score = model_.predict(feat_)
+            output_score = model.predict(feat_)
             output_score = float(np.mean(output_score))
 
         # Average the scores of all segments from the input file
@@ -485,17 +547,16 @@ def make_prediction(model_, model_name, y_feats):
     return y_score
 
 
-def config_model(model_name: str, models: dict, training_feats, training_labels, random_state: int = 42):
+def config_model(model_name: str, training_feats, training_labels, seed: int = 42):
     """
-    Function to configure a model
+    Function to configure a sklearn model
     @param model_name: Type of the model
-    @param models: Dictionary with all the available models
     @param training_feats: Training features
     @param training_labels: Training labels
-    @param random_state: Random seed
-    @return: Configured model
+    @param seed: Random seed
+    @return: Configured model and a processed features with its labels
     """
-    model_args = models[model_name]
+    model_args = MODELS[model_name]
 
     if model_name == 'LogisticRegression':
         model = LogisticRegression(C=float(model_args['c']),
@@ -503,7 +564,7 @@ def config_model(model_name: str, models: dict, training_feats, training_labels,
                                    solver=model_args['solver'],
                                    penalty=model_args['penalty'],
                                    class_weight=model_args['class_weight'],
-                                   random_state=random_state,
+                                   random_state=seed,
                                    verbose=True)
     elif model_name == 'RandomForest':
         model = RandomForestClassifier(n_estimators=model_args['n_estimators'],
@@ -513,14 +574,14 @@ def config_model(model_name: str, models: dict, training_feats, training_labels,
                                        min_samples_leaf=model_args['min_samples_leaf'],
                                        max_features=model_args['max_features'],
                                        class_weight=model_args['class_weight'],
-                                       random_state=random_state)
+                                       random_state=seed)
     elif model_name == 'LinearSVM':
         model = SVC(C=model_args['c'],
                     tol=model_args['tol'],
                     max_iter=model_args['max_iter'],
                     verbose=model_args['verbose'],
                     class_weight=model_args['class_weight'],
-                    random_state=random_state)
+                    random_state=seed)
         #
         # trans = StandardScaler()
         # training_feats = trans.fit_transform(training_feats)
@@ -530,7 +591,7 @@ def config_model(model_name: str, models: dict, training_feats, training_labels,
                               solver=model_args['solver'], alpha=model_args['alpha'],
                               learning_rate_init=model_args['learning_rate_init'],
                               verbose=model_args['verbose'], activation=model_args['activation'],
-                              max_iter=model_args['max_iter'], random_state=random_state)
+                              max_iter=model_args['max_iter'], random_state=seed)
 
         if model_args['class_weight'] == 'balanced':
             train_data = np.concatenate((training_feats, training_labels.reshape(training_feats.shape[0], 1)),
@@ -549,9 +610,14 @@ def config_model(model_name: str, models: dict, training_feats, training_labels,
     return model, training_feats, training_labels
 
 
-def make_test_feats(path_to_save, path_wav, test_data, feats_config_):
+def make_test_feats(path_to_save: str, path_wav: str, test_data: np.array, feats_config_: dict) -> (np.array, np.array):
     """
     Make the test features and get the labels
+    :param path_to_save: path to save the features
+    :param path_wav: path to the wav files
+    :param test_data: test data
+    :param feats_config_: features configuration
+    :return: test features and its labels
     """
     y_feats, y_true = [], []
     # Make the test features and get the labels
@@ -565,13 +631,14 @@ def make_test_feats(path_to_save, path_wav, test_data, feats_config_):
     return y_feats, y_true
 
 
-def make_feats(path_to_wav: str, audio_id: pd.DataFrame, labels: pd.DataFrame, feats_config_: dict):
+def make_feats(path_to_wav: str, audio_id: pd.DataFrame, labels: pd.DataFrame, feats_config_: dict) -> np.array:
     """
     Extract features from audio files
     :param path_to_wav: path to audio files
     :param audio_id: audio ids as a pandas dataframe
     :param labels: labels as a pandas dataframe
     :param feats_config_: feature configuration as a dictionary
+    :return: features and labels
     """
     # Prepare feature extractor
     FE = FeatureExtractor(feats_config_)
@@ -590,7 +657,14 @@ def make_feats(path_to_wav: str, audio_id: pd.DataFrame, labels: pd.DataFrame, f
     return np.array(egs[:, :-1], dtype=float), np.array(egs[:, -1], dtype=int)
 
 
-def make_train_test_subsets(metadata: pd.DataFrame, test_size: float = 0.2, random_state: int = 42):
+def make_train_test_subsets(metadata: pd.DataFrame, test_size: float = 0.2, seed: int = 42):
+    """
+    Split the data into train and test subsets. The split is done by patients.
+    :param metadata: metadata as a pandas dataframe
+    :param test_size: test size in percentage
+    :param seed: random seed
+    :return: train and test subsets of features and its labels
+    """
     # Making the subsets by patients
     PATIENT_ID_COLUMN = 'patient_id'
     CLASS_COLUMN = 'patient_type'
@@ -605,7 +679,7 @@ def make_train_test_subsets(metadata: pd.DataFrame, test_size: float = 0.2, rand
     pat_train, pat_test, pat_labels_train, pat_labels_test = train_test_split(patient_id, patient_class,
                                                                               test_size=test_size,
                                                                               stratify=patient_class,
-                                                                              random_state=random_state,
+                                                                              random_state=seed,
                                                                               shuffle=True)
     # Using the patient subsets to select the audio samples
     audio_data_train = metadata[(metadata[PATIENT_ID_COLUMN].isin(pat_train))]
@@ -617,8 +691,8 @@ def make_train_test_subsets(metadata: pd.DataFrame, test_size: float = 0.2, rand
     audio_label_test = audio_data_test[CLASS_COLUMN]
 
     # Print the final length of each subset
-    print(f"Test-set: {len(pat_test)} patients & {len(audio_data_test)} samples")
-    print(f"Train-set: {len(pat_train):} patients & {len(audio_data_train)} samples")
+    print(f"\tTest-set: {len(pat_test)} patients & {len(audio_data_test)} samples")
+    print(f"\tTrain-set: {len(pat_train):} patients & {len(audio_data_train)} samples")
     return audio_train, audio_test, audio_label_train, audio_label_test
 
 
@@ -650,16 +724,26 @@ def make_dicoperia_metadata(save_path: str, metadata: pd.DataFrame, filters_: di
     df.replace(['covid-control', 'covid-persistente'], [0, 1], inplace=True)
     df.to_csv(save_path, index=False, decimal=',')
     print('Metadata saved in: {}'.format(save_path))
-    print('=== Filtering DONE!! ===\n')
+    print('=== Filtering DONE!! ===')
     return df
 
 
 def load_config_from_json(path: str):
+    """
+    Load a json file as a dictionary. Useful to load the configuration of the experiments
+    :param path: path to the json file
+    :return: dictionary with the configuration
+    """
     with open(path, 'r', encoding='utf-8') as f:
         return json.load(f)
 
 
 def save_config_as_json(config: dict, path: str):
+    """
+    Save a dictionary as a json file. Useful to save the configuration of the experiments
+    :param config: dictionary with the configuration
+    :param path: path to save the json file
+    """
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(config, f, ensure_ascii=False, indent=4)
 
@@ -667,32 +751,32 @@ def save_config_as_json(config: dict, path: str):
 if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('--root_path', type=str,
-                        default='/home/jsanhcez/Documentos/Proyectos/99_to_do_COPERIA/repos/coperia_api/')
+    parser.add_argument('-r', default='/home/jsanhcez/Documentos/Proyectos/06_TODO_COPERIA/repos/coperia_api')
     args = parser.parse_args()
+
     # Define important paths
-    root_path = args.root_path
+    root_path = args.r
     data_path = os.path.join(root_path, 'dataset_dicoperia/')
     wav_path = os.path.join(data_path, 'wav_48000kHz/')
     csv_path = os.path.join(data_path, 'metadata_dicoperia.csv')
     results_path = os.path.join(root_path, 'results')
+    mlflow_path = os.path.join(root_path, 'mlruns')
     # Data filters
     all_filters = load_config_from_json(os.path.join(root_path, 'config', 'filter_config.json'))
     # Feature configuration
     feats_config = load_config_from_json(os.path.join(root_path, 'config', 'feature_config.json'))
-
     # Models configurations
-    seed = feats_config['seed']
-    all_models = load_config_from_json(os.path.join(root_path, 'config', 'models_config.json'))
+    random_state = feats_config['seed']
+    MODELS = load_config_from_json(os.path.join(root_path, 'config', 'models_config.json'))
 
     # Run the experiments
     for exp_filter in all_filters:
         # Select the feats
         all_feats = ['ComParE_2016_voicing', 'ComParE_2016_energy', 'ComParE_2016_basic_spectral',
-                     'ComParE_2016_spectral',
-                     'ComParE_2016_mfcc', 'ComParE_2016_rasta',
+                     'ComParE_2016_spectral', 'ComParE_2016_mfcc', 'ComParE_2016_rasta',
                      'MFCC', 'MelSpec', 'logMelSpec']
         extra_features = [True, False]
+
         for feat in all_feats:
             feats_config['feature_type'] = feat
             if 'ComParE_2016' in feat:
@@ -702,12 +786,12 @@ if __name__ == "__main__":
                 feats_config['extra_features'] = extra
 
                 # Select the model
-                for m in all_models.keys():
+                for model_ in MODELS.keys():
                     print('================================================================'
                           f'Running experiment with: \n'
-                          f'    Seed    :{seed}\n'
-                          f'    Model   :{m}\n'
+                          f'    Model   :{model_}  -  Seed:{random_state}\n'
                           f'    Filters :{exp_filter}\n'
                           f'    Features:{feat} extra:{extra}\n'
                           f'----------------------------------------------------------------')
-                    run_exp(csv_path, wav_path, f'{results_path}_{seed}', exp_filter, feats_config, m, all_models, seed)
+                    mlflow_run(csv_path, wav_path, f'{results_path}_{random_state}',
+                               exp_filter, feats_config, model_, random_state, mlflow_path)
