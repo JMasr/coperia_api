@@ -766,7 +766,7 @@ if __name__ == "__main__":
     root_path = args.r
     data_path = os.path.join(root_path, 'dataset_dicoperia/')
     wav_path = os.path.join(data_path, 'wav_48000kHz/')
-    csv_path = os.path.join(data_path, 'metadata_dicoperia.csv')
+    csv_path = os.path.join(data_path, 'dicoperia_metadata.csv')
     results_path = os.path.join(root_path, 'results')
     mlflow_path = os.path.join(root_path, 'mlruns')
     # Data filters
