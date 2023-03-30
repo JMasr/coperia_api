@@ -5,6 +5,7 @@ import pickle
 import random
 import string
 
+import librosa
 import mlflow
 import torch
 import torchaudio
@@ -12,13 +13,17 @@ import opensmile
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
-from sklearn.ensemble import RandomForestClassifier
+
 from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.svm import SVC, NuSVC
+from sklearn.neural_network import MLPClassifier
+
 from sklearn.metrics import roc_auc_score, roc_curve, precision_recall_fscore_support, f1_score, confusion_matrix
 from sklearn.metrics import precision_recall_curve, ConfusionMatrixDisplay, accuracy_score
 from sklearn.model_selection import train_test_split
-from sklearn.neural_network import MLPClassifier
-from sklearn.svm import SVC
+
 from tqdm import tqdm
 
 
@@ -66,26 +71,30 @@ class FeatureExtractor:
         else:
             raise ValueError('Feature type not implemented')
 
-    def _read_audio(self, filepath):
-        """ This code does the following:
-                1. Read audio,
-                2. Resample the audio if required,
-                3. Perform waveform normalization,
-                4. Compute sound activity using threshold based method
-                5. Discard the silence regions
-        :param filepath: path to the audio file
-        :return: a torch.Tensor with the audio samples and an int with the sample rate
+    def _read_audio(self, audio_file_path):
         """
-
-        s, fs = torchaudio.load(filepath)
-        if fs != self.resampling_rate:
-            s, fs = torchaudio.sox_effects.apply_effects_tensor(s, fs, [['rate', str(self.resampling_rate)]])
-        if s.shape[0] > 1:
-            s = s.mean(dim=0).unsqueeze(0)
-        s = s / torch.max(torch.abs(s))
-        sad = self.compute_sad(s.numpy(), self.resampling_rate)
-        s = s[np.where(sad == 1)]
-        return s, fs
+         The code above implements speech activity detection using the librosa.effects.split() function with a threshold of top_db=30,
+         which separates audio regions where the amplitude is lower than the threshold.
+         The pre-emphasis filter is applied using the librosa.effects.preemphasis() function with a coefficient of 0.97.
+         This filter emphasizes the high-frequency components of the audio signal, which can improve the quality of the speech signal.
+         Finally, the code normalizes the audio signal to have maximum amplitude of 1
+         :param audio_file_path: audio file path
+         :return: audio signal and sampling rate
+         """
+        # load the audio file
+        s, sr = librosa.load(audio_file_path, mono=True)
+        # resample
+        if (self.resampling_rate is not None) or (sr < self.resampling_rate):
+            s = librosa.resample(s, sr, self.resampling_rate)
+            sr = self.resampling_rate
+        # apply speech activity detection
+        speech_indices = librosa.effects.split(s, top_db=30)
+        s = np.concatenate([s[start:end] for start, end in speech_indices])
+        # apply a pre-emphasis filter
+        s = librosa.effects.preemphasis(s, coef=0.97)
+        # normalize
+        s /= np.max(np.abs(s))
+        return torch.from_numpy(s), sr
 
     @staticmethod
     def compute_sad(sig, fs, threshold=0.0001, sad_start_end_sil_length=100, sad_margin_length=50):
@@ -298,7 +307,7 @@ class FeatureExtractor:
 def run_exp(path_data_: str, path_wav_: str, path_results_: str, filters: dict, feature_config_: dict,
             model_name: str, seed: int = 42):
     """
-    Run a experiment with the given parameters
+    Run an experiment with the given parameters
     :param path_data_: path to the metadata file
     :param path_wav_: path to the wav files
     :param path_results_: path to the results
@@ -320,51 +329,46 @@ def run_exp(path_data_: str, path_wav_: str, path_results_: str, filters: dict, 
     dicoperia_metadata = pd.read_csv(path_data_, decimal=',')
     # Make the metadata for the DICOPERIA dataset
     path_exp_metadata = os.path.join(path_results_, 'exp_metadata.csv')
-    exp_metadata = make_dicoperia_metadata(path_exp_metadata, dicoperia_metadata, filters)
+    # exp_metadata = make_dicoperia_metadata(path_exp_metadata, dicoperia_metadata, filters)
+    exp_metadata = make_dicoperia_metadata(path_exp_metadata, dicoperia_metadata)
     # Make the subsets
     sample_gain_testing = 0.2
     train, test, label_train, label_test = make_train_test_subsets(exp_metadata, sample_gain_testing, seed)
 
+    train_path = f'train_feats_{feature_config_["feature_type"]}_{feature_config_["extra_features"]}_' \
+                 f'{filters["audio_type"][0].replace(r"/", "")}_{filters["audio_moment"][0]}_{seed}.npy'
     # Make the features
-    if not os.path.exists(os.path.join(path_results_, f'train_feats_{feature_config_["feature_type"]}'
-                                                      f'_{feature_config_["extra_features"]}_{seed}.npy')):
+    if not os.path.exists(os.path.join(path_results_, train_path)):
         train_feats, train_labels = make_feats(path_wav_, train, label_train, feature_config_)
         # Save the train features
-        np.save(os.path.join(path_results_, f'train_feats_{feature_config_["feature_type"]}'
-                                            f'_{feature_config_["extra_features"]}_{seed}.npy'), train_feats)
-        np.save(os.path.join(path_results_, f'train_labels_{feature_config_["feature_type"]}'
-                                            f'_{feature_config_["extra_features"]}_{seed}.npy'), train_labels)
+        np.save(os.path.join(path_results_, train_path), train_feats)
+        np.save(os.path.join(path_results_, train_path.replace('train_feats', 'train_labels')), train_labels)
     else:
         print("Loading training feats from disk...")
-        train_feats = np.load(os.path.join(path_results_, f'train_feats_{feature_config_["feature_type"]}'
-                                                          f'_{feature_config_["extra_features"]}_{seed}.npy'))
-        train_labels = np.load(os.path.join(path_results_, f'train_labels_{feature_config_["feature_type"]}_'
-                                                           f'{feature_config_["extra_features"]}_{seed}.npy'))
+        train_feats = np.load(os.path.join(path_results_, train_path))
+        train_labels = np.load(os.path.join(path_results_, train_path.replace('train_feats', 'train_labels')))
 
-    if not os.path.exists(os.path.join(path_results_, f'test_feats_{feature_config_["feature_type"]}'
-                                                      f'_{feature_config_["extra_features"]}_{seed}.npy')):
+    if not os.path.exists(os.path.join(path_results_, train_path.replace('train_feats', 'test_feats'))):
         test_feats, test_label = make_test_feats(path_results_, path_wav_, [test, label_test], feature_config_)
         # Save the test features
-        np.save(os.path.join(path_results_, f'test_feats_{feature_config_["feature_type"]}'
-                                            f'_{feature_config_["extra_features"]}_{seed}.npy'), test_feats)
-        np.save(os.path.join(path_results_, f'test_labels_{feature_config_["feature_type"]}_'
-                                            f'{feature_config_["extra_features"]}_{seed}.npy'), test_label)
+        np.save(os.path.join(path_results_, train_path.replace('train_feats', 'test_feats')), test_feats)
+        np.save(os.path.join(path_results_, train_path.replace('train_feats', 'test_labels')), test_label)
     else:
         print("Loading testing feats from disk...")
-        test_feats = np.load(os.path.join(path_results_, f'test_feats_{feature_config_["feature_type"]}'
-                                                         f'_{feature_config_["extra_features"]}_{seed}.npy'),
+        test_feats = np.load(os.path.join(path_results_, train_path.replace('train_feats', 'test_feats')),
                              allow_pickle=True)
-        test_label = np.load(os.path.join(path_results_, f'test_labels_{feature_config_["feature_type"]}_'
-                                                         f'{feature_config_["extra_features"]}_{seed}.npy'),
+        test_label = np.load(os.path.join(path_results_, train_path.replace('train_feats', 'test_labels')),
                              allow_pickle=True)
 
-    # Train the model
+    # Training phase
     path_model = os.path.join(exp_name, f'{model_name}_results')
+    # Create the directory to save the results
+    os.makedirs(path_model, exist_ok=True)
+
+    # Configure the model
+    model, x_train, y_train, test_feats, test_label = config_model(model_name, train_feats, train_labels, test_feats,
+                                                                   test_label, seed)
     if not os.path.exists(os.path.join(path_model, f'{model_name}.pkl')):
-        # Create the directory to save the results
-        os.makedirs(path_model, exist_ok=True)
-        # Configure the model
-        model, x_train, y_train = config_model(model_name, train_feats, train_labels, seed)
         # Train the model
         model.fit(x_train, y_train)
         # Save the model
@@ -547,12 +551,14 @@ def make_prediction(model, model_name: str, y_feats: list) -> list:
     return y_score
 
 
-def config_model(model_name: str, training_feats, training_labels, seed: int = 42):
+def config_model(model_name: str, training_feats, training_labels, test_feats, test_labels, seed: int = 42):
     """
     Function to configure a sklearn model
     @param model_name: Type of the model
     @param training_feats: Training features
     @param training_labels: Training labels
+    @param test_feats: Test features
+    @param test_labels: Testing labels
     @param seed: Random seed
     @return: Configured model and a processed features with its labels
     """
@@ -580,11 +586,14 @@ def config_model(model_name: str, training_feats, training_labels, seed: int = 4
                     tol=model_args['tol'],
                     max_iter=model_args['max_iter'],
                     verbose=model_args['verbose'],
-                    class_weight=model_args['class_weight'],
                     random_state=seed)
-        #
-        # trans = StandardScaler()
-        # training_feats = trans.fit_transform(training_feats)
+
+        trans = StandardScaler()
+        min_max = MinMaxScaler()
+        training_feats = min_max.fit_transform(training_feats)
+        training_feats = trans.fit_transform(training_feats)
+        test_feats = np.array([min_max.transform(f) for f in test_feats])
+        test_feats = np.array([trans.transform(f) for f in test_feats])
 
     elif model_name == 'MLP':
         model = MLPClassifier(hidden_layer_sizes=model_args['hidden_layer_sizes'],
@@ -594,8 +603,7 @@ def config_model(model_name: str, training_feats, training_labels, seed: int = 4
                               max_iter=model_args['max_iter'], random_state=seed)
 
         if model_args['class_weight'] == 'balanced':
-            train_data = np.concatenate((training_feats, training_labels.reshape(training_feats.shape[0], 1)),
-                                        axis=1)
+            train_data = np.concatenate((training_feats, training_labels.reshape(training_feats.shape[0], 1)), axis=1)
             ind = np.where(train_data[:, -1] == 1)[0]
             n_positives = len(ind)
             n_negatives = train_data.shape[0] - n_positives
@@ -607,7 +615,7 @@ def config_model(model_name: str, training_feats, training_labels, seed: int = 4
             training_labels = train_data[:, -1]
     else:
         raise ValueError("Not implementation of the model: " + model_name)
-    return model, training_feats, training_labels
+    return model, training_feats, training_labels, test_feats, test_labels
 
 
 def make_test_feats(path_to_save: str, path_wav: str, test_data: np.array, feats_config_: dict) -> (np.array, np.array):
