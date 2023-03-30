@@ -10,6 +10,5 @@
     "apply_mean_norm": true,
     "apply_var_norm": true,
     "compute_deltas": true,
-    "compute_deltas_deltas": true,
-    "seed": 40
+    "compute_deltas_deltas": true
 }

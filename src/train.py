@@ -7,24 +7,25 @@ import string
 
 import librosa
 import mlflow
+import numpy as np
+import opensmile
+import pandas as pd
 import torch
 import torchaudio
-import opensmile
-import numpy as np
-import pandas as pd
-from matplotlib import pyplot as plt
-
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
-from sklearn.svm import SVC, NuSVC
-from sklearn.neural_network import MLPClassifier
-
-from sklearn.metrics import roc_auc_score, roc_curve, precision_recall_fscore_support, f1_score, confusion_matrix
-from sklearn.metrics import precision_recall_curve, ConfusionMatrixDisplay, accuracy_score
-from sklearn.model_selection import train_test_split
 
 from tqdm import tqdm
+from matplotlib import pyplot as plt
+
+from sklearn.svm import SVC
+from sklearn.neural_network import MLPClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split, KFold
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.metrics import precision_recall_curve, ConfusionMatrixDisplay, accuracy_score
+from sklearn.metrics import roc_auc_score, roc_curve, precision_recall_fscore_support, f1_score, confusion_matrix
+
+from src.util import load_config_from_json
 
 
 class FeatureExtractor:
@@ -73,10 +74,11 @@ class FeatureExtractor:
 
     def _read_audio(self, audio_file_path):
         """
-         The code above implements speech activity detection using the librosa.effects.split() function with a threshold of top_db=30,
-         which separates audio regions where the amplitude is lower than the threshold.
+         The code above implements SAD using the librosa.effects.split() function with a threshold of top_db=30, which
+         separates audio regions where the amplitude is lower than the threshold.
          The pre-emphasis filter is applied using the librosa.effects.preemphasis() function with a coefficient of 0.97.
-         This filter emphasizes the high-frequency components of the audio signal, which can improve the quality of the speech signal.
+         This filter emphasizes the high-frequency components of the audio signal,
+         which can improve the quality of the speech signal.
          Finally, the code normalizes the audio signal to have maximum amplitude of 1
          :param audio_file_path: audio file path
          :return: audio signal and sampling rate
@@ -299,13 +301,16 @@ class FeatureExtractor:
         :param filepath: path to the audio file
         :return: features
         """
-        self.audio_path = filepath
-        s, fs = self._read_audio(filepath)
-        return self._do_feature_extraction(s)
+        if not isinstance(filepath, str):
+            return np.NAN
+        else:
+            self.audio_path = filepath
+            s, fs = self._read_audio(filepath)
+            return self._do_feature_extraction(s)
 
 
 def run_exp(path_data_: str, path_wav_: str, path_results_: str, filters: dict, feature_config_: dict,
-            model_name: str, seed: int = 42):
+            model_name: str, k_fold: int = 1, seed: int = 42):
     """
     Run an experiment with the given parameters
     :param path_data_: path to the metadata file
@@ -314,6 +319,7 @@ def run_exp(path_data_: str, path_wav_: str, path_results_: str, filters: dict, 
     :param filters: filters to be applied to the metadata
     :param feature_config_: configuration of the features
     :param model_name: name of the model to be used
+    :param k_fold: number of folds to be used
     :param seed: seed to be used
     :return: The trained model and the scores of the experiment
     """
@@ -333,96 +339,93 @@ def run_exp(path_data_: str, path_wav_: str, path_results_: str, filters: dict, 
     exp_metadata = make_dicoperia_metadata(path_exp_metadata, dicoperia_metadata)
     # Make the subsets
     sample_gain_testing = 0.2
-    train, test, label_train, label_test = make_train_test_subsets(exp_metadata, sample_gain_testing, seed)
+    data_folds = make_train_test_subsets(exp_metadata[::50], sample_gain_testing, k_fold, seed)
 
-    train_path = f'train_feats_{feature_config_["feature_type"]}_{feature_config_["extra_features"]}_' \
-                 f'{filters["audio_type"][0].replace(r"/", "")}_{filters["audio_moment"][0]}_{seed}.npy'
-    # Make the features
-    if not os.path.exists(os.path.join(path_results_, train_path)):
-        train_feats, train_labels = make_feats(path_wav_, train, label_train, feature_config_)
-        # Save the train features
-        np.save(os.path.join(path_results_, train_path), train_feats)
-        np.save(os.path.join(path_results_, train_path.replace('train_feats', 'train_labels')), train_labels)
-    else:
-        print("Loading training feats from disk...")
-        train_feats = np.load(os.path.join(path_results_, train_path))
-        train_labels = np.load(os.path.join(path_results_, train_path.replace('train_feats', 'train_labels')))
+    for num_fold, (train, test, label_train, label_test) in enumerate(data_folds):
+        train_path = f'train_feats_{feature_config_["feature_type"]}_{feature_config_["extra_features"]}_' \
+                     f'{filters["audio_type"][0].replace(r"/", "")}_{filters["audio_moment"][0]}_{num_fold}_{seed}.npy'
+        # Make the features
+        if not os.path.exists(os.path.join(path_results_, train_path)):
+            train_feats, train_labels = make_feats(path_wav_, train, label_train, feature_config_)
+            # Save the train features
+            np.save(os.path.join(path_results_, train_path), train_feats)
+            np.save(os.path.join(path_results_, train_path.replace('train_feats', 'train_labels')), train_labels)
+        else:
+            print("Loading training feats from disk...")
+            train_feats = np.load(os.path.join(path_results_, train_path))
+            train_labels = np.load(os.path.join(path_results_, train_path.replace('train_feats', 'train_labels')))
 
-    if not os.path.exists(os.path.join(path_results_, train_path.replace('train_feats', 'test_feats'))):
-        test_feats, test_label = make_test_feats(path_results_, path_wav_, [test, label_test], feature_config_)
-        # Save the test features
-        np.save(os.path.join(path_results_, train_path.replace('train_feats', 'test_feats')), test_feats)
-        np.save(os.path.join(path_results_, train_path.replace('train_feats', 'test_labels')), test_label)
-    else:
-        print("Loading testing feats from disk...")
-        test_feats = np.load(os.path.join(path_results_, train_path.replace('train_feats', 'test_feats')),
-                             allow_pickle=True)
-        test_label = np.load(os.path.join(path_results_, train_path.replace('train_feats', 'test_labels')),
-                             allow_pickle=True)
+        if not os.path.exists(os.path.join(path_results_, train_path.replace('train_feats', 'test_feats'))):
+            test_feats, test_label = make_test_feats(path_results_, path_wav_, [test, label_test], feature_config_)
+            # Save the test features
+            np.save(os.path.join(path_results_, train_path.replace('train_feats', 'test_feats')), test_feats)
+            np.save(os.path.join(path_results_, train_path.replace('train_feats', 'test_labels')), test_label)
+        else:
+            print("Loading testing feats from disk...")
+            test_feats = np.load(os.path.join(path_results_, train_path.replace('train_feats', 'test_feats')),
+                                 allow_pickle=True)
+            test_label = np.load(os.path.join(path_results_, train_path.replace('train_feats', 'test_labels')),
+                                 allow_pickle=True)
 
-    # Training phase
-    path_model = os.path.join(exp_name, f'{model_name}_results')
-    # Create the directory to save the results
-    os.makedirs(path_model, exist_ok=True)
+        # Training phase
+        path_model = os.path.join(exp_name, f'{model_name}_{num_fold}_results')
+        # Create the directory to save the results
+        os.makedirs(path_model, exist_ok=True)
 
-    # Configure the model
-    model, x_train, y_train, test_feats, test_label = config_model(model_name, train_feats, train_labels, test_feats,
-                                                                   test_label, seed)
-    if not os.path.exists(os.path.join(path_model, f'{model_name}.pkl')):
-        # Train the model
-        model.fit(x_train, y_train)
-        # Save the model
-        pickle.dump(model, open(os.path.join(path_model, f'{model_name}.pkl'), 'wb'))
-    else:
-        print("Loading model from disk...")
-        model = pickle.load(open(os.path.join(path_model, f'{model_name}.pkl'), 'rb'))
+        # Configure the model
+        model, x_train, y_train, test_feats, test_label = config_model(model_name, train_feats, train_labels,
+                                                                       test_feats, test_label, seed)
+        pikle_model = os.path.join(path_model, f'{model_name}_{num_fold}.pkl')
+        if not os.path.exists(pikle_model):
+            # Train the model
+            model.fit(x_train, y_train)
+            # Save the model
+            pickle.dump(model, open(pikle_model, 'wb'))
+        else:
+            print("Loading model from disk...")
+            model = pickle.load(open(pikle_model, 'rb'))
 
-    # Calculate the performance metrics using sklearn
-    score_path = os.path.join(path_model, f'{model_name}_scores.pkl')
-    all_scores = score_sklearn(model, test_feats, test_label, score_path)
-    return model, all_scores
+        # Calculate the performance metrics using sklearn
+        score_path = os.path.join(path_model, f'{model_name}_{num_fold}scores.pkl')
+        all_scores = score_sklearn(model, test_feats, test_label, score_path)
+
+        # Log the results using mlflow
+        mlflow_run(filters, feature_config_, model_name, num_fold, seed, all_scores, model)
 
 
-def mlflow_run(path_data: str, path_wav: str, path_results: str, filters: dict, feature_config: dict,
-               model_name: str, seed: int, tracking_uri: str):
+def mlflow_run(filters: dict, feature_config: dict, model_name: str, num_fold: int, seed: int, all_scores: dict, model):
     """
     Run the experiment using mlruns to track the results
-    :param path_data: Path to the metadata of the DICOPERIA dataset
-    :param path_wav: Path to the wav files of the DICOPERIA dataset
-    :param path_results: Path to save the results
     :param filters: A dictionary of filters to be used in the experiment
     :param feature_config: A dictionary of features to be used in the experiment
     :param model_name: Name of the model to be used
+    :param num_fold: Number of folds to be used in the experiment
     :param seed: Random state to be used in the experiment
-    :param tracking_uri: Path to save the mlflow results
+    :param all_scores: A dictionary of scores to be logged
+    :param model: The model to be logged
     :return: None
     """
     # Define the experiment
-
-    if not os.path.exists(tracking_uri):
-        os.makedirs(tracking_uri, exist_ok=True)
-
-    mlflow.set_tracking_uri("http://0.0.0.0:5000/")
+    mlflow.set_tracking_uri('http://localhost:5000')
     mlflow.set_experiment(f'{feature_config["feature_type"]}_{feature_config["extra_features"]}_'
                           f'{filters["audio_type"][0].replace(r"/", "")}_{filters["audio_moment"][0]}_'
                           f'seed-{seed}')
-    with mlflow.start_run(run_name=f'{model_name}_seed-{seed}'):
+
+    with mlflow.start_run(run_name=f'{model_name}_{num_fold}_seed-{seed}'):
         # Log the parameters
         mlflow.log_params(filters)
         mlflow.log_params(feature_config)
         mlflow.log_param('model', model_name)
         mlflow.log_param('model_arguments', MODELS[f'{model_name}'])
+        mlflow.log_param("fold", num_fold + 1)
         mlflow.log_param('random_state', seed)
-
-        # Run the experiment
-        model, all_scores = run_exp(path_data, path_wav, path_results, filters, feature_config, model_name, seed)
 
         # Log the metrics
         mlflow_metric = {k: v for k, v in all_scores.items() if isinstance(v, (int, float))}
         mlflow.log_metrics(mlflow_metric)
 
         # Save the model
-        model_dev_name = f'{model_name}_{seed}_{feature_config["feature_type"]}_{all_scores["auc_score"]:0.2f}'
+        model_dev_name = f'{model_name}_{feature_config["feature_type"]}_{all_scores["auc_score"]:0.2f}'
         mlflow.sklearn.log_model(model, model_dev_name)
 
 
@@ -665,7 +668,23 @@ def make_feats(path_to_wav: str, audio_id: pd.DataFrame, labels: pd.DataFrame, f
     return np.array(egs[:, :-1], dtype=float), np.array(egs[:, -1], dtype=int)
 
 
-def make_train_test_subsets(metadata: pd.DataFrame, test_size: float = 0.2, seed: int = 42):
+def make_k_fold_subsets(exp_metadata, k_fold, seed):
+    kf = KFold(n_splits=k_fold, shuffle=True, random_state=seed)
+    # Iterate over the k-folds
+    k_folds = []
+    for ind, (train_index, test_index) in enumerate(kf.split(exp_metadata['patient_id'])):
+        # Get the train and test data
+        audio_train = exp_metadata.iloc[train_index]['audio_id']
+        audio_test = exp_metadata.iloc[test_index]['audio_id']
+
+        lable_train = exp_metadata.iloc[train_index]['patient_type']
+        lable_test = exp_metadata.iloc[test_index]['patient_type']
+
+        k_folds.append([audio_train, audio_test, lable_train, lable_test])
+    return k_folds
+
+
+def make_train_test_subsets(metadata: pd.DataFrame, test_size: float = 0.2, k_fold: int = 1, seed: int = 42):
     """
     Split the data into train and test subsets. The split is done by patients.
     :param metadata: metadata as a pandas dataframe
@@ -673,35 +692,40 @@ def make_train_test_subsets(metadata: pd.DataFrame, test_size: float = 0.2, seed
     :param seed: random seed
     :return: train and test subsets of features and its labels
     """
-    # Making the subsets by patients
-    PATIENT_ID_COLUMN = 'patient_id'
-    CLASS_COLUMN = 'patient_type'
-    AUDIO_ID_COLUMN = 'audio_id'
 
-    # Prepare the metadata
-    patient_data = metadata[[PATIENT_ID_COLUMN, CLASS_COLUMN]].drop_duplicates()
-    patient_id = patient_data[PATIENT_ID_COLUMN]
-    patient_class = patient_data[CLASS_COLUMN]
+    if k_fold == 1:
+        # Making the subsets by patients
+        PATIENT_ID_COLUMN = 'patient_id'
+        CLASS_COLUMN = 'patient_type'
+        AUDIO_ID_COLUMN = 'audio_id'
 
-    # Split the data
-    pat_train, pat_test, pat_labels_train, pat_labels_test = train_test_split(patient_id, patient_class,
-                                                                              test_size=test_size,
-                                                                              stratify=patient_class,
-                                                                              random_state=seed,
-                                                                              shuffle=True)
-    # Using the patient subsets to select the audio samples
-    audio_data_train = metadata[(metadata[PATIENT_ID_COLUMN].isin(pat_train))]
-    audio_train = audio_data_train[AUDIO_ID_COLUMN]
-    audio_label_train = audio_data_train[CLASS_COLUMN]
+        # Prepare the metadata
+        patient_data = metadata[[PATIENT_ID_COLUMN, CLASS_COLUMN]].drop_duplicates()
+        patient_id = patient_data[PATIENT_ID_COLUMN]
+        patient_class = patient_data[CLASS_COLUMN]
 
-    audio_data_test = metadata[(metadata[PATIENT_ID_COLUMN].isin(pat_test))]
-    audio_test = audio_data_test[AUDIO_ID_COLUMN]
-    audio_label_test = audio_data_test[CLASS_COLUMN]
+        # Split the data
+        pat_train, pat_test, pat_labels_train, pat_labels_test = train_test_split(patient_id, patient_class,
+                                                                                  test_size=test_size,
+                                                                                  stratify=patient_class,
+                                                                                  random_state=seed,
+                                                                                  shuffle=True)
+        # Using the patient subsets to select the audio samples
+        audio_data_train = metadata[(metadata[PATIENT_ID_COLUMN].isin(pat_train))]
+        audio_train = audio_data_train[AUDIO_ID_COLUMN]
+        audio_label_train = audio_data_train[CLASS_COLUMN]
 
-    # Print the final length of each subset
-    print(f"\tTest-set: {len(pat_test)} patients & {len(audio_data_test)} samples")
-    print(f"\tTrain-set: {len(pat_train):} patients & {len(audio_data_train)} samples")
-    return audio_train, audio_test, audio_label_train, audio_label_test
+        audio_data_test = metadata[(metadata[PATIENT_ID_COLUMN].isin(pat_test))]
+        audio_test = audio_data_test[AUDIO_ID_COLUMN]
+        audio_label_test = audio_data_test[CLASS_COLUMN]
+
+        # Print the final length of each subset
+        print(f"\tTest-set: {len(pat_test)} patients & {len(audio_data_test)} samples")
+        print(f"\tTrain-set: {len(pat_train):} patients & {len(audio_data_train)} samples")
+        return [audio_train, audio_test, audio_label_train, audio_label_test]
+    else:
+        k_folds = make_k_fold_subsets(metadata, k_fold, seed)
+        return k_folds
 
 
 def make_dicoperia_metadata(save_path: str, metadata: pd.DataFrame, filters_: dict = None, remove_samples: dict = None):
@@ -736,26 +760,6 @@ def make_dicoperia_metadata(save_path: str, metadata: pd.DataFrame, filters_: di
     return df
 
 
-def load_config_from_json(path: str):
-    """
-    Load a json file as a dictionary. Useful to load the configuration of the experiments
-    :param path: path to the json file
-    :return: dictionary with the configuration
-    """
-    with open(path, 'r', encoding='utf-8') as f:
-        return json.load(f)
-
-
-def save_config_as_json(config: dict, path: str):
-    """
-    Save a dictionary as a json file. Useful to save the configuration of the experiments
-    :param config: dictionary with the configuration
-    :param path: path to save the json file
-    """
-    with open(path, 'w', encoding='utf-8') as f:
-        json.dump(config, f, ensure_ascii=False, indent=4)
-
-
 if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser()
@@ -768,14 +772,16 @@ if __name__ == "__main__":
     wav_path = os.path.join(data_path, 'wav_48000kHz/')
     csv_path = os.path.join(data_path, 'dicoperia_metadata.csv')
     results_path = os.path.join(root_path, 'results')
-    mlflow_path = os.path.join(root_path, 'mlruns')
     # Data filters
     all_filters = load_config_from_json(os.path.join(root_path, 'config', 'filter_config.json'))
     # Feature configuration
     feats_config = load_config_from_json(os.path.join(root_path, 'config', 'feature_config.json'))
     # Models configurations
-    random_state = feats_config['seed']
     MODELS = load_config_from_json(os.path.join(root_path, 'config', 'models_config.json'))
+    # Runs configuration
+    run_config = load_config_from_json(os.path.join(root_path, 'config', 'run_config.json'))
+    k_fold = run_config['k_fold']
+    random_state = run_config['seed']
 
     # Run the experiments
     for exp_filter in all_filters:
@@ -801,5 +807,5 @@ if __name__ == "__main__":
                           f'    Filters :{exp_filter}\n'
                           f'    Features:{feat} extra:{extra}\n'
                           f'----------------------------------------------------------------')
-                    mlflow_run(csv_path, wav_path, f'{results_path}_{random_state}',
-                               exp_filter, feats_config, model_, random_state, mlflow_path)
+                    run_exp(csv_path, wav_path, f'{results_path}_{random_state}', exp_filter, feats_config, model_,
+                            k_fold, random_state)
