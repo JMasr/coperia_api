@@ -319,7 +319,7 @@ def run_exp(path_data_: str, path_wav_: str, path_results_: str, filters: dict, 
     exp_metadata = make_dicoperia_metadata(path_exp_metadata, dicoperia_metadata)
     # Make the subsets
     sample_gain_testing = 0.2
-    data_folds = make_train_test_subsets(exp_metadata[::50], sample_gain_testing, k_folds, seed)
+    data_folds = make_train_test_subsets(exp_metadata, sample_gain_testing, k_folds, seed)
 
     for num_fold, (train, test, label_train, label_test) in enumerate(data_folds):
         train_path = f'train_feats_{feature_config_["feature_type"]}_{feature_config_["extra_features"]}_' \
@@ -669,6 +669,7 @@ def make_train_test_subsets(metadata: pd.DataFrame, test_size: float = 0.2, k_fo
     Split the data into train and test subsets. The split is done by patients.
     :param metadata: metadata as a pandas dataframe
     :param test_size: test size in percentage
+    :param k_fold: number of folds
     :param seed: random seed
     :return: train and test subsets of features and its labels
     """
