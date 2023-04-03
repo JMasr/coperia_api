@@ -2,8 +2,6 @@ import argparse
 import json
 import os
 import pickle
-import random
-import string
 
 import librosa
 import mlflow
@@ -12,20 +10,18 @@ import opensmile
 import pandas as pd
 import torch
 import torchaudio
-
-from tqdm import tqdm
 from matplotlib import pyplot as plt
-
-from sklearn.svm import SVC
-from sklearn.neural_network import MLPClassifier
-from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split, KFold
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import precision_recall_curve, ConfusionMatrixDisplay, accuracy_score
 from sklearn.metrics import roc_auc_score, roc_curve, precision_recall_fscore_support, f1_score, confusion_matrix
+from sklearn.model_selection import train_test_split, KFold
+from sklearn.neural_network import MLPClassifier
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.svm import SVC
+from tqdm import tqdm
 
-from src.util import load_config_from_json
+from util import load_config_from_json
 
 
 class FeatureExtractor:
