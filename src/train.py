@@ -116,7 +116,7 @@ class FeatureExtractor:
         sad[0, -sad_start_end_sil_length:] = 0
         return sad
 
-    def _do_feature_extraction(self, s):
+    def _do_feature_extraction(self, s, sr):
         """ Feature preparation
         Steps:
         1. Apply feature extraction to waveform
@@ -128,15 +128,7 @@ class FeatureExtractor:
         if 'ComParE_2016' in self.args['feature_type']:
             #
             s = s[None, :]
-            # get a random string
-            file_name = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
-            while os.path.exists(file_name):
-                file_name = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
-            torchaudio.save(file_name + '.wav', s, sample_rate=self.resampling_rate)
-            F = self.feature_transform.process_file(file_name + '.wav')
-
-            # columns based selection
-            os.remove(file_name + '.wav')
+            F = self.feature_transform.process_signal(s, sr)
 
             # feature subsets
             feature_subset = {}
@@ -243,13 +235,7 @@ class FeatureExtractor:
 
         # own feature selection
         if self.args.get('extra_features', False) and 'ComParE_2016' not in self.args['feature_type']:
-
-            # Make a temporary file to save the audio to
-            file_name = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
-            while os.path.exists(file_name):
-                file_name = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
             s = s[None, :]
-            torchaudio.save(file_name + '.wav', s, sample_rate=self.resampling_rate)
             # Config OpenSMILE
             feature_subset = {'subset': [
                 # Voicing
@@ -283,15 +269,13 @@ class FeatureExtractor:
                                               feature_level=opensmile.FeatureLevel.LowLevelDescriptors,
                                               sampling_rate=self.resampling_rate)
             # Extract features
-            F_extra = extra_transform.process_file(file_name + '.wav')
+            F_extra = extra_transform.process_signal(s, sr)
             F_extra = F_extra[feature_subset['subset']].to_numpy()
             F_extra = np.nan_to_num(F_extra)
             F_extra = torch.from_numpy(F_extra).T
             # Concatenate the features
             common_shape = min(F.shape[1], F_extra.shape[1])
             F = torch.cat((F[:, :common_shape], F_extra[:, :common_shape]), dim=0)
-            # Remove the temporary file
-            os.remove(file_name + '.wav')
 
         return F.T
 
@@ -306,11 +290,11 @@ class FeatureExtractor:
         else:
             self.audio_path = filepath
             s, fs = self._read_audio(filepath)
-            return self._do_feature_extraction(s)
+            return self._do_feature_extraction(s, fs)
 
 
 def run_exp(path_data_: str, path_wav_: str, path_results_: str, filters: dict, feature_config_: dict,
-            model_name: str, k_fold: int = 1, seed: int = 42):
+            model_name: str, k_folds: int = 1, seed: int = 42):
     """
     Run an experiment with the given parameters
     :param path_data_: path to the metadata file
@@ -319,7 +303,7 @@ def run_exp(path_data_: str, path_wav_: str, path_results_: str, filters: dict, 
     :param filters: filters to be applied to the metadata
     :param feature_config_: configuration of the features
     :param model_name: name of the model to be used
-    :param k_fold: number of folds to be used
+    :param k_folds: number of folds to be used
     :param seed: seed to be used
     :return: The trained model and the scores of the experiment
     """
@@ -339,7 +323,7 @@ def run_exp(path_data_: str, path_wav_: str, path_results_: str, filters: dict, 
     exp_metadata = make_dicoperia_metadata(path_exp_metadata, dicoperia_metadata)
     # Make the subsets
     sample_gain_testing = 0.2
-    data_folds = make_train_test_subsets(exp_metadata[::50], sample_gain_testing, k_fold, seed)
+    data_folds = make_train_test_subsets(exp_metadata[::50], sample_gain_testing, k_folds, seed)
 
     for num_fold, (train, test, label_train, label_test) in enumerate(data_folds):
         train_path = f'train_feats_{feature_config_["feature_type"]}_{feature_config_["extra_features"]}_' \
@@ -780,7 +764,7 @@ if __name__ == "__main__":
     MODELS = load_config_from_json(os.path.join(root_path, 'config', 'models_config.json'))
     # Runs configuration
     run_config = load_config_from_json(os.path.join(root_path, 'config', 'run_config.json'))
-    k_fold = run_config['k_fold']
+    num_folds = run_config['k_folds']
     random_state = run_config['seed']
 
     # Run the experiments
@@ -808,4 +792,4 @@ if __name__ == "__main__":
                           f'    Features:{feat} extra:{extra}\n'
                           f'----------------------------------------------------------------')
                     run_exp(csv_path, wav_path, f'{results_path}_{random_state}', exp_filter, feats_config, model_,
-                            k_fold, random_state)
+                            num_folds, random_state)
