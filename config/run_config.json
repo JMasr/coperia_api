@@ -1,4 +1,5 @@
 {
-      "seed": 40,
-    "k_folds": 5
+       "seed": 40,
+    "k_folds": 5,
+  "test_size": 0
 }

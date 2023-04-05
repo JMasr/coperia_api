@@ -83,7 +83,7 @@ class FeatureExtractor:
         s, sr = librosa.load(audio_file_path, mono=True)
         # resample
         if (self.resampling_rate is not None) or (sr < self.resampling_rate):
-            s = librosa.resample(s, sr, self.resampling_rate)
+            s = librosa.resample(y=s, orig_sr=sr, target_sr=self.resampling_rate)
             sr = self.resampling_rate
         # apply speech activity detection
         speech_indices = librosa.effects.split(s, top_db=30)
@@ -788,5 +788,6 @@ if __name__ == "__main__":
                           f'    Filters :{exp_filter}\n'
                           f'    Features:{feat} extra:{extra}\n'
                           f'----------------------------------------------------------------')
-                    run_exp(csv_path, wav_path, f'{results_path}_{random_state}', exp_filter, feats_config, model_,
+                    run_exp(csv_path, wav_path, f'{results_path}_{random_state}',
+                            exp_filter, feats_config, model_,
                             num_folds, random_state)
