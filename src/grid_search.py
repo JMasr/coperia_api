@@ -1,3 +1,4 @@
+import argparse
 import datetime
 import os.path
 
@@ -114,8 +115,13 @@ def make_subsets(path_csv: str, path_audio: str, splitting_factor: float = 0.2, 
 
 
 if __name__ == '__main__':
+    # Parse arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-r', default='/home/jsanhcez/Documentos/Proyectos/06_TODO_COPERIA/repos/coperia_api')
+    args = parser.parse_args()
+
     # Define the data to be used
-    path_root = '/home/jsanhcez/Documentos/Proyectos/06_TODO_COPERIA/repos/coperia_api/'
+    path_root = args.r
     path_data = os.path.join(path_root, 'dataset_dicoperia/dicoperia_metadata.csv')
     path_wav = wav_path = os.path.join(path_root, 'dataset_dicoperia/wav_48000kHz/')
 
