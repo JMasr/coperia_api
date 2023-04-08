@@ -18,8 +18,8 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 from sklearn.neural_network import MLPClassifier
 
-from src.train import FeatureExtractor
-from src.util import load_config_from_json
+from train import FeatureExtractor
+from util import load_config_from_json
 
 
 def mlflow_grid_search(feats, labels, all_models, exp_pipeline, exp_metrics, num_folds, data_name, time):
