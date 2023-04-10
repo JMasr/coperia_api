@@ -1,4 +1,7 @@
-[
+[    {
+        "audio_type": ["ALL"],
+        "audio_moment": ["ALL"]
+    },
     {
         "audio_type": ["/a/"],
         "audio_moment": ["before"]

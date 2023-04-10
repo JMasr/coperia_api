@@ -315,8 +315,7 @@ def run_exp(path_data_: str, path_wav_: str, path_results_: str, filters: dict, 
     dicoperia_metadata = pd.read_csv(path_data_, decimal=',')
     # Make the metadata for the DICOPERIA dataset
     path_exp_metadata = os.path.join(path_results_, 'exp_metadata.csv')
-    # exp_metadata = make_dicoperia_metadata(path_exp_metadata, dicoperia_metadata, filters)
-    exp_metadata = make_dicoperia_metadata(path_exp_metadata, dicoperia_metadata)
+    exp_metadata = make_dicoperia_metadata(path_exp_metadata, dicoperia_metadata, filters)
     # Make the subsets
     sample_gain_testing = 0.2
     data_folds = make_train_test_subsets(exp_metadata, sample_gain_testing, k_folds, seed)
@@ -732,6 +731,9 @@ def make_dicoperia_metadata(save_path: str, metadata: pd.DataFrame, filters_: di
         df = df[~df[key].isin(values)]
 
     for key, values in filters_.items():
+        if 'ALL' in values:
+            values = list(df[key].unique())
+
         df = df[df[key].isin(values)]
 
     df.replace(['covid-control', 'covid-persistente'], [0, 1], inplace=True)
