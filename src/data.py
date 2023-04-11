@@ -14,7 +14,7 @@ from spafe.features.pncc import pncc
 from spafe.features.psrcc import psrcc
 from spafe.features.rplp import plp, rplp
 
-from src.config import Config
+from config import Config
 
 
 class FeatureExtractor:

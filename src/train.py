@@ -2,15 +2,19 @@ import argparse
 import json
 import os
 import pickle
+from tqdm import tqdm
 
-import librosa
 import mlflow
-import numpy as np
-import opensmile
-import pandas as pd
+
 import torch
 import torchaudio
+import numpy as np
+import pandas as pd
 from matplotlib import pyplot as plt
+
+import librosa
+import opensmile
+
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import precision_recall_curve, ConfusionMatrixDisplay, accuracy_score
@@ -19,7 +23,6 @@ from sklearn.model_selection import train_test_split, KFold
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.svm import SVC
-from tqdm import tqdm
 
 from util import load_config_from_json
 
@@ -395,17 +398,13 @@ def mlflow_run(filters: dict, feature_config: dict, model_name: str, num_fold: i
         mlflow.log_params(filters)
         mlflow.log_params(feature_config)
         mlflow.log_param('model', model_name)
-        mlflow.log_param('model_arguments', MODELS[f'{model_name}'])
+        mlflow.log_params('model_arguments', MODELS[f'{model_name}'])
         mlflow.log_param("fold", num_fold + 1)
         mlflow.log_param('random_state', seed)
 
         # Log the metrics
         mlflow_metric = {k: v for k, v in all_scores.items() if isinstance(v, (int, float))}
         mlflow.log_metrics(mlflow_metric)
-
-        # Save the model
-        model_dev_name = f'{model_name}_{feature_config["feature_type"]}_{all_scores["auc_score"]:0.2f}'
-        mlflow.sklearn.log_model(model, model_dev_name)
 
 
 def score_sklearn(model_trained, test_feats: list, test_label: list, path_to_save: str) -> dict:

@@ -1,5 +1,5 @@
 {
-       "seed": 40,
+       "seed": 42,
     "k_folds": 5,
   "test_size": 0
 }
