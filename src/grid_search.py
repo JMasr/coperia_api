@@ -94,6 +94,9 @@ def make_subsets(path_csv: str, path_audio: str, splitting_factor: float = 0.2, 
     # Read the data
     df = pd.read_csv(path_csv, decimal=',')
     df.replace(['covid-control', 'covid-persistente'], [0, 1], inplace=True)
+    # Filter the audio_moment column and audio_type column
+    df = df[df['audio_moment'] == 'before']
+    df = df[df['audio_type'] == '/cough/']
     # Add to the columns the path to the wav file
     df['audio_id'] = df['audio_id'].apply(lambda wav_id: os.path.join(path_audio, wav_id + '.wav'))
     # Split the data
@@ -126,14 +129,16 @@ if __name__ == '__main__':
     path_wav = wav_path = os.path.join(path_root, 'dataset_dicoperia/wav_48000kHz/')
 
     print("Define training parameters")
-    seed: int = load_config_from_json(os.path.join(path_root, 'config', 'run_config.json'))['seed']
-    k_folds: int = load_config_from_json(os.path.join(path_root, 'config', 'run_config.json'))['k_folds']
+    seed: int = 58
+    k_folds: int = 5
     test_size: float = load_config_from_json(os.path.join(path_root, 'config', 'run_config.json'))['test_size']
     # Define the features to be used
     feats_config = load_config_from_json(os.path.join(path_root, 'config', 'feature_config.json'))
+    feats_config['feature_type'] = 'MFCC'
+    feats_config['extra_features'] = False
 
     print("Make the train and test data")
-    path_feats_np = os.path.join(path_root, 'dataset_dicoperia/dicoperia_all-feats_and_labels.npy')
+    path_feats_np = os.path.join(path_root, 'dataset_dicoperia/dicoperia_all-feats_and_labels??.npy')
     if os.path.exists(path_feats_np):
         # Load the data
         df_feats = np.load(path_feats_np, allow_pickle=True)
@@ -146,75 +151,21 @@ if __name__ == '__main__':
         np.save(path_feats_np, np.concatenate((x, y.reshape(y.shape[0], 1)), axis=1))
 
     print("Define the models to be tested")
-    models = {
-        'LogisticRegression': {
-            'model': LogisticRegression(),
-            'params': {
-                'model__C': [0.01, 0.1, 1.0, 10, 100],
-                'model__max_iter': [1000],
-                'model__penalty': ['l2', 'none'],
-                'model__solver': ['lbfgs', 'sag', 'saga'],
-                'model__class_weight': [None, 'balanced'],
-                'kbest__k': [100, 75, 50],
-                'kbest__score_func': [f_classif, mutual_info_classif],
-                'PCA__n_components': [100, 75, 50]
-            }
-        },
-        'RandomForest': {
+    models = {'RandomForest': {
             'model': RandomForestClassifier(),
             'params': {
-                'model__n_estimators': [100, 500, 1000],
+                'model__n_estimators': [1000],
                 'model__criterion': ['gini', 'entropy'],
                 'model__max_depth': [5, 10, 20, None],
                 'model__min_samples_split': [2, 5, 10],
                 'model__min_samples_leaf': [1, 2, 4],
                 'model__max_features': ['auto', 'sqrt'],
                 'model__class_weight': [None, 'balanced'],
-                'kbest__k': [5, 10, 15],
+                'kbest__k': [23, 50, 96],
                 'kbest__score_func': [f_classif, mutual_info_classif],
-                'PCA__n_components': [5, 10, 15]
+                'PCA__n_components': [10, 15, 96]
             }
-        },
-        'LinearSVM': {
-            'model': SVC(),
-            'params': {
-                'model__C': [0.1, 1.0, 10.0],
-                'model__tol': [1e-3, 1e-4, 1e-5],
-                'model__max_iter': [100, 500, 1000],
-                'model__class_weight': [None, 'balanced'],
-                'kbest__k': [5, 10, 15],
-                'kbest__score_func': [f_classif, mutual_info_classif],
-                'PCA__n_components': [5, 10, 15]
-            }
-        },
-        'RBF-SVM': {
-            'model': SVC(kernel='rbf'),
-            'params': {
-                'model__C': [0.1, 1.0, 10.0],
-                'model__tol': [1e-3, 1e-4, 1e-5],
-                'model__gamma': [0.01, 0.1, 1.0, 'scale'],
-                'model__max_iter': [100, 500, 1000],
-                'model__class_weight': [None, 'balanced'],
-                'kbest__k': [5, 10, 15],
-                'kbest__score_func': [f_classif, mutual_info_classif],
-                'PCA__n_components': [5, 10, 15]
-            }
-        },
-        'MLP': {
-            'model': MLPClassifier(),
-            'params': {
-                'model__hidden_layer_sizes': [(100,), (50, 50), (100, 50, 25)],
-                'model__activation': ['relu', 'tanh', 'logistic'],
-                'model__solver': ['adam', 'lbfgs'],
-                'model__alpha': [0.0001, 0.001, 0.01],
-                'model__max_iter': [1000],
-                'kbest__k': [5, 10, 15],
-                'kbest__score_func': [f_classif, mutual_info_classif],
-                'PCA__n_components': [5, 10, 15]
-            }
-
-        }
-    }
+        }}
 
     # Define the pipeline
     pipeline = Pipeline([('scaler', StandardScaler()),
