@@ -312,7 +312,7 @@ def run_exp(path_data_: str, path_wav_: str, path_results_: str, filters: dict, 
     exp_name = os.path.join(path_results_, exp_name)
 
     os.makedirs(exp_name, exist_ok=True)
-    feats_config['output_path'] = results_path
+    feature_config_['output_path'] = path_results_
 
     # Define the data to be used
     dicoperia_metadata = pd.read_csv(path_data_, decimal=',')
@@ -543,7 +543,40 @@ def config_model(model_name: str, training_feats, training_labels, test_feats, t
     @param seed: Random seed
     @return: Configured model and a processed features with its labels
     """
-    model_args = MODELS[model_name]
+    models = {"LogisticRegression": {"c": 0.01,
+                                     "max_iter": 40,
+                                     "solver": "liblinear",
+                                     "penalty": "l2",
+                                     "class_weight": "balanced",
+                                     "verbose": True
+                                     },
+              "RandomForest": {"n_estimators": 20,
+                               "criterion": "gini",
+                               "max_depth": None,
+                               "min_samples_split": 2,
+                               "min_samples_leaf": 1,
+                               "max_features": "sqrt",
+                               "class_weight": "balanced",
+                               "verbose": True
+                               },
+              "MLP": {"learning_rate_init": 0.001,
+                      "alpha": 0.001,
+                      "solver": "adam",
+                      "hidden_layer_sizes": [20, 20],
+                      "max_iter": 500,
+                      "activation": "tanh",
+                      "class_weight": "balanced",
+                      "verbose": True
+                      },
+              "LinearSVM": {"c": 0.1,
+                            "tol": 0.001,
+                            "max_iter": 1000,
+                            "class_weight": None,
+                            "verbose": True
+                            }
+              }
+
+    model_args = models[model_name]
 
     if model_name == 'LogisticRegression':
         model = LogisticRegression(C=float(model_args['c']),
@@ -672,7 +705,7 @@ def make_train_test_subsets(metadata: pd.DataFrame, test_size: float = 0.2, k_fo
     :return: train and test subsets of features and its labels
     """
 
-    if k_fold == 1:
+    if k_fold <= 1:
         # Making the subsets by patients
         PATIENT_ID_COLUMN = 'patient_id'
         CLASS_COLUMN = 'patient_type'
@@ -701,7 +734,7 @@ def make_train_test_subsets(metadata: pd.DataFrame, test_size: float = 0.2, k_fo
         # Print the final length of each subset
         print(f"\tTest-set: {len(pat_test)} patients & {len(audio_data_test)} samples")
         print(f"\tTrain-set: {len(pat_train):} patients & {len(audio_data_train)} samples")
-        return [audio_train, audio_test, audio_label_train, audio_label_test]
+        return [[audio_train, audio_test, audio_label_train, audio_label_test]]
     else:
         k_folds = make_k_fold_subsets(metadata, k_fold, seed)
         return k_folds

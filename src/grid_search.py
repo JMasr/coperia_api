@@ -18,7 +18,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 from sklearn.neural_network import MLPClassifier
 
-from train import FeatureExtractor
+from train_all import FeatureExtractor
 from util import load_config_from_json
 
 

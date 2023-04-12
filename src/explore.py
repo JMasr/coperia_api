@@ -1,4 +1,4 @@
-from train import *
+from train_all import *
 
 from sklearn.decomposition import PCA, KernelPCA, SparsePCA, TruncatedSVD
 from sklearn.manifold import TSNE
