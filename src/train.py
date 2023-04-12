@@ -398,7 +398,7 @@ def mlflow_run(filters: dict, feature_config: dict, model_name: str, num_fold: i
         mlflow.log_params(filters)
         mlflow.log_params(feature_config)
         mlflow.log_param('model', model_name)
-        mlflow.log_params('model_arguments', MODELS[f'{model_name}'])
+        mlflow.log_param('model_arguments', MODELS[f'{model_name}'])
         mlflow.log_param("fold", num_fold + 1)
         mlflow.log_param('random_state', seed)
 
