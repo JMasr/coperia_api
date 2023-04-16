@@ -22,7 +22,7 @@ from fhir.resources.patient import Patient
 from keycloak import KeycloakOpenID
 
 from config import Config
-from data import FeatureExtractor
+from feats import FeatureExtractor
 from util import load_obj, save_obj
 
 

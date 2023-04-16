@@ -5,20 +5,15 @@ import os.path
 import mlflow
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
-
 from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_selection import SelectKBest, f_classif, mutual_info_classif
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from tqdm import tqdm
 
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.svm import SVC
-from sklearn.neural_network import MLPClassifier
-
-from train_all import FeatureExtractor
+from feats import FeatureExtractor
 from util import load_config_from_json
 
 
@@ -138,7 +133,7 @@ if __name__ == '__main__':
     feats_config['extra_features'] = False
 
     print("Make the train and test data")
-    path_feats_np = os.path.join(path_root, 'dataset_dicoperia/dicoperia_all-feats_and_labels??.npy')
+    path_feats_np = os.path.join(path_root, 'dataset_dicoperia/dicoperia_all-feats_and_labels.npy')
     if os.path.exists(path_feats_np):
         # Load the data
         df_feats = np.load(path_feats_np, allow_pickle=True)
