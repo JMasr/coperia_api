@@ -241,10 +241,6 @@ class FeatureExtractor:
                                            num_ceps=int(self.args.get('n_mfcc')),
                                            low_freq=int(self.args.get('f_min')),
                                            high_freq=int(sr // 2),
-                                           normalize=self.args.get('normalize'),
-                                           win_len=float(self.args.get('window_size') * 1e-3),
-                                           win_hop=float(self.args.get('hop_length', 0)) * 1e-3,
-                                           win_type=self.args.get('window_type'),
                                            nfilts=int(self.args.get('n_mels')),
                                            nfft=nfft,
                                            use_energy=self.args.get('use_energy') == 'True')
