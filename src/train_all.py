@@ -537,11 +537,7 @@ if __name__ == "__main__":
         # Select the feats
         all_feats = ['Spafe_rplp', 'Spafe_imfcc', 'Spafe_cqcc', 'Spafe_gfcc', 'Spafe_lfcc',
                      'Spafe_lpc', 'Spafe_lpcc', 'Spafe_msrcc', 'Spafe_ngcc', 'Spafe_pncc',
-                     'Spafe_psrcc', 'Spafe_plp', 'Spafe_rplp',
-                     'ComParE_2016_voicing', 'ComParE_2016_energy',
-                     'ComParE_2016_basic_spectral',
-                     'ComParE_2016_spectral', 'ComParE_2016_mfcc', 'ComParE_2016_rasta',
-                     'MFCC', 'MelSpec', 'logMelSpec']
+                     'Spafe_psrcc', 'Spafe_plp', 'Spafe_rplp']
         extra_features = [True, False]
 
         for feat in all_feats:
