@@ -535,7 +535,7 @@ if __name__ == "__main__":
     # Run the experiments
     for exp_filter in all_filters:
         # Select the feats
-        all_feats = ['Spafe_rplp', 'Spafe_imfcc', 'Spafe_cqcc', 'Spafe_gfcc', 'Spafe_lfcc',
+        all_feats = ['Spafe_mfcc', 'Spafe_imfcc', 'Spafe_cqcc', 'Spafe_gfcc', 'Spafe_lfcc',
                      'Spafe_lpc', 'Spafe_lpcc', 'Spafe_msrcc', 'Spafe_ngcc', 'Spafe_pncc',
                      'Spafe_psrcc', 'Spafe_plp', 'Spafe_rplp']
         extra_features = [True, False]
