@@ -234,9 +234,8 @@ class FeatureExtractor:
             # Spafe feature selected
             nfft = int(float(self.args.get('window_size', 0) * 1e-3 * self.resampling_rate))
 
-            if self.args['feature_type'] in ['Spafe_mfcc', 'Spafe_imfcc', 'Spafe_cqcc', 'Spafe_gfcc', 'Spafe_lfcc',
-                                             'Spafe_lpc', 'Spafe_lpcc', 'Spafe_msrcc', 'Spafe_ngcc', 'Spafe_pncc',
-                                             'Spafe_psrcc']:
+            if self.args['feature_type'] in ['Spafe_mfcc', 'Spafe_imfcc', 'Spafe_gfcc', 'Spafe_lfcc', 'Spafe_msrcc',
+                                             'Spafe_ngcc', 'Spafe_pncc', 'Spafe_psrcc']:
                 F = self.feature_transform(s, sr,
                                            num_ceps=int(self.args.get('n_mfcc')),
                                            low_freq=int(self.args.get('f_min')),
@@ -244,6 +243,18 @@ class FeatureExtractor:
                                            nfilts=int(self.args.get('n_mels')),
                                            nfft=nfft,
                                            use_energy=self.args.get('use_energy') == 'True')
+
+            elif self.args['feature_type'] in ['Spafe_cqcc']:
+                F = self.feature_transform(s, sr,
+                                           num_ceps=int(self.args.get('n_mfcc')),
+                                           low_freq=int(self.args.get('f_min')),
+                                           high_freq=int(sr // 2),
+                                           nfft=nfft)
+            elif self.args['feature_type'] in ['Spafe_lpc', 'Spafe_lpcc', ]:
+                F = self.feature_transform(s, sr, order=int(self.args.get('plp_order')))
+                if isinstance(F, tuple):
+                    F = F[0]
+
             elif self.args['feature_type'] in ['Spafe_plp', 'Spafe_rplp']:
                 F = self.feature_transform(s, sr,
                                            order=int(self.args.get('plp_order')),
