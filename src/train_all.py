@@ -106,10 +106,10 @@ def run_exp(path_data_: str, path_wav_: str, path_results_: str, filters: dict, 
         all_scores = score_sklearn(model, test_feats, test_label, score_path)
 
         # Log the results using mlflow
-        mlflow_run(filters, feature_config_, model_name, num_fold, seed, all_scores, model)
+        mlflow_run(filters, feature_config_, model_name, num_fold, seed, all_scores)
 
 
-def mlflow_run(filters: dict, feature_config: dict, model_name: str, num_fold: int, seed: int, all_scores: dict, model):
+def mlflow_run(filters: dict, feature_config: dict, model_name: str, num_fold: int, seed: int, all_scores: dict):
     """
     Run the experiment using mlruns to track the results
     :param filters: A dictionary of filters to be used in the experiment
@@ -118,7 +118,6 @@ def mlflow_run(filters: dict, feature_config: dict, model_name: str, num_fold: i
     :param num_fold: Number of folds to be used in the experiment
     :param seed: Random state to be used in the experiment
     :param all_scores: A dictionary of scores to be logged
-    :param model: The model to be logged
     :return: None
     """
     # Define the experiment
@@ -258,6 +257,17 @@ def make_prediction(model, model_name: str, y_feats: list) -> list:
                 output_score = model.predict_proba(feat_)
                 output_score = sum(output_score)[0].item() / len(output_score)
         else:
+            # Print a warning if the number of features is not the same
+            if feat_.shape[1] != model.n_features_in_:
+                print(f"Warning: The number of features is not the same. "
+                      f"Expected {model.n_features_in_} but got {feat_.shape[1]}")
+                if feat_.shape[1] < model.n_features_in_:
+                    feat_ = np.concatenate((feat_, np.zeros((feat_.shape[0], model.n_features_in_ - feat_.shape[1]))),
+                                           axis=1)
+                elif feat_.shape[1] > model.n_features_in_:
+                    feat_ = feat_[:, :model.n_features_in_]
+
+            # Predict
             output_score = model.predict(feat_)
             output_score = float(np.mean(output_score))
 
