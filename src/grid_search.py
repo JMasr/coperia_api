@@ -151,23 +151,17 @@ if __name__ == '__main__':
             'params': {
                 'model__n_estimators': [1000],
                 'model__criterion': ['gini', 'entropy'],
-                'model__max_depth': [5, 10, 20, None],
-                'model__min_samples_split': [2, 5, 10],
-                'model__min_samples_leaf': [1, 2, 4],
-                'model__max_features': ['auto', 'sqrt'],
-                'model__class_weight': [None, 'balanced'],
-                'kbest__k': [23, 50, 96],
-                'kbest__score_func': [f_classif, mutual_info_classif],
-                'PCA__n_components': [10, 15, 96]
+                'model__max_depth': [20],
+                'model__min_samples_split': [2],
+                'model__min_samples_leaf': [1],
+                'model__max_features': ['auto'],
+                'model__class_weight': ['balanced'],
             }
         }}
 
     # Define the pipeline
     pipeline = Pipeline([('scaler', StandardScaler()),
-                         ('kbest', SelectKBest(score_func=f_classif, k=10)),
-                         ('PCA', PCA(n_components=10)),
-                         ('model', None)
-                         ])
+                         ('model', None)])
 
     # Define the evaluation metrics
     metrics = ['accuracy', 'balanced_accuracy', 'f1', 'precision', 'recall', 'roc_auc']
