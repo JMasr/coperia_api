@@ -534,7 +534,7 @@ if __name__ == "__main__":
 
     # Define important paths
     root_path = args.r
-    data_path = os.path.join(root_path, 'dataset_dicoperia/')
+    data_path = os.path.join(root_path, 'dataset/')
     wav_path = os.path.join(data_path, 'wav_48000kHz/')
     csv_path = os.path.join(data_path, 'dicoperia_metadata.csv')
     results_path = os.path.join(root_path, 'results')

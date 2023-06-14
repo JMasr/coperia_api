@@ -118,8 +118,8 @@ if __name__ == '__main__':
 
     # Define the data to be used
     path_root = args.r
-    path_data = os.path.join(path_root, 'dataset_dicoperia/dicoperia_metadata.csv')
-    path_wav = wav_path = os.path.join(path_root, 'dataset_dicoperia/wav_48000kHz/')
+    path_data = os.path.join(path_root, 'dataset/dicoperia_metadata.csv')
+    path_wav = wav_path = os.path.join(path_root, 'dataset/wav_48000kHz/')
 
     print("Define training parameters")
     seed: int = 58
@@ -131,7 +131,7 @@ if __name__ == '__main__':
     feats_config['extra_features'] = False
 
     print("Make the train and test data")
-    path_feats_np = os.path.join(path_root, 'dataset_dicoperia/dicoperia_all-feats_and_labels.npy')
+    path_feats_np = os.path.join(path_root, 'dataset/dicoperia_all-feats_and_labels.npy')
     if os.path.exists(path_feats_np):
         # Load the data
         df_feats = np.load(path_feats_np, allow_pickle=True)
