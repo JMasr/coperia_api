@@ -21,9 +21,9 @@ from fhir.resources.observation import Observation
 from fhir.resources.patient import Patient
 from keycloak import KeycloakOpenID
 
-from config import Config
-from feats import FeatureExtractor
-from util import load_obj, save_obj
+from src.config import Config
+from src.feats import FeatureExtractor
+from src.util import load_obj, save_obj
 
 
 class Audio:

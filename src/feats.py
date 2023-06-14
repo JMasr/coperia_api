@@ -1,8 +1,7 @@
-import torch
-import numpy as np
-
 import librosa
+import numpy as np
 import opensmile
+import torch
 import torchaudio
 from spafe.features.bfcc import bfcc
 from spafe.features.cqcc import cqcc
@@ -16,8 +15,6 @@ from spafe.features.ngcc import ngcc
 from spafe.features.pncc import pncc
 from spafe.features.psrcc import psrcc
 from spafe.features.rplp import plp, rplp
-
-from config import Config
 
 
 class FeatureExtractor:

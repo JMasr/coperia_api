@@ -22,8 +22,8 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.metrics import precision_recall_curve, ConfusionMatrixDisplay, accuracy_score
 from sklearn.metrics import roc_auc_score, roc_curve, precision_recall_fscore_support, f1_score, confusion_matrix
 # My libraries
-from feats import FeatureExtractor
-from util import load_config_from_json
+from src.feats import FeatureExtractor
+from src.util import load_config_from_json
 
 
 def run_exp(path_data_: str, path_wav_: str, path_results_: str, filters: dict, feature_config_: dict,

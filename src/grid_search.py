@@ -11,8 +11,8 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
 
-from feats import FeatureExtractor
-from util import load_config_from_json
+from src.feats import FeatureExtractor
+from src.util import load_config_from_json
 
 
 def mlflow_grid_search(feats, labels, all_models, exp_pipeline, exp_metrics, num_folds, data_name, time):

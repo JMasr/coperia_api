@@ -1,8 +1,8 @@
 import argparse
 import os
 
-from util import load_config_from_json
-from train_all import run_exp
+from src.util import load_config_from_json
+from src.train_all import run_exp
 
 if __name__ == '__main__':
     # Parse arguments
