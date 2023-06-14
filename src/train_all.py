@@ -158,10 +158,6 @@ def score_sklearn(model_trained, test_feats: list, test_label: list, path_to_sav
     sklearn_roc_auc_score = roc_auc_score(y_true, y_score)
     sklear_fpr, sklearn_tpr, n_thresholds = roc_curve(y_true, y_score)
 
-    # Calculate the specificity and sensitivity
-    sensitivity = sklearn_tpr[1]
-    specificity = 1 - sensitivity
-
     # Make prediction using a threshold that maximizes the difference between TPR and FPR
     optimal_idx = np.argmax(sklearn_tpr - sklear_fpr)
     optimal_threshold = n_thresholds[optimal_idx]
@@ -175,8 +171,18 @@ def score_sklearn(model_trained, test_feats: list, test_label: list, path_to_sav
     # Calculate Confusion Matrix
     confusion_mx = confusion_matrix(y_true, y_pred)
 
+    # Calculate the specificity and sensitivity
+    tn, fp, fn, tp = confusion_mx.ravel()
+    sensitivity = tp / (tp + fn)
+    specificity = tn / (tn + fp)
+
+    # Create a dictionary of scores
     dict_scores = {'model_name': model_name,
                    'acc_score': float(acc),
+                   'tn': int(tn),
+                   'fp': int(fp),
+                   'fn': int(fn),
+                   'tp': int(tp),
                    'tpr': sklearn_tpr.tolist(),
                    'tnr': sklear_fpr.tolist(),
                    'sensitivity': float(sensitivity),
@@ -235,6 +241,7 @@ def score_sklearn(model_trained, test_feats: list, test_label: list, path_to_sav
 
     print("--------------------------------------------")
     print("Scoring: Accuracy = {:.2f}, AUC = {:.2f}".format(acc, sklearn_roc_auc_score))
+    print("Scoring: Sensitivity = {:.2f}, specificity = {:.2f}".format(sensitivity, specificity))
     print('============================================\n')
     return dict_scores
 
@@ -545,7 +552,11 @@ if __name__ == "__main__":
     # Run the experiments
     for exp_filter in all_filters:
         # Select the feats
-        all_feats = ['Spafe_mfcc', 'Spafe_imfcc', 'Spafe_cqcc', 'Spafe_gfcc', 'Spafe_lfcc',
+        all_feats = ['MFCC', 'MelSpec', 'logMelSpec',
+                     'ComParE_2016_voicing', 'ComParE_2016_energy',
+                     'ComParE_2016_basic_spectral', 'ComParE_2016_spectral',
+                     'ComParE_2016_mfcc', 'ComParE_2016_rasta',
+                     'Spafe_mfcc', 'Spafe_imfcc', 'Spafe_cqcc', 'Spafe_gfcc', 'Spafe_lfcc',
                      'Spafe_lpc', 'Spafe_lpcc', 'Spafe_msrcc', 'Spafe_ngcc', 'Spafe_pncc',
                      'Spafe_psrcc', 'Spafe_plp', 'Spafe_rplp']
         extra_features = [True, False]
