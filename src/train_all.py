@@ -109,7 +109,8 @@ def run_exp(path_data_: str, path_wav_: str, path_results_: str, filters: dict, 
         mlflow_run(filters, feature_config_, model_name, num_fold, seed, all_scores)
 
 
-def mlflow_run(filters: dict, feature_config: dict, model_name: str, num_fold: int, seed: int, all_scores: dict):
+def mlflow_run(filters: dict, feature_config: dict, model_name: str, num_fold: int, seed: int, all_scores: dict,
+               port: str = '5050'):
     """
     Run the experiment using mlruns to track the results
     :param filters: A dictionary of filters to be used in the experiment
@@ -118,10 +119,11 @@ def mlflow_run(filters: dict, feature_config: dict, model_name: str, num_fold: i
     :param num_fold: Number of folds to be used in the experiment
     :param seed: Random state to be used in the experiment
     :param all_scores: A dictionary of scores to be logged
+    :param port: Port of mlFlow Server
     :return: None
     """
     # Define the experiment
-    mlflow.set_tracking_uri('http://localhost:5000')
+    mlflow.set_tracking_uri(f'http://localhost:{port}')
     mlflow.set_experiment(f'{feature_config["feature_type"]}_{feature_config["extra_features"]}_'
                           f'{filters["audio_type"][0].replace(r"/", "")}_{filters["audio_moment"][0]}_'
                           f'seed-{seed}')
