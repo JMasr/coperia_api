@@ -8,7 +8,7 @@ Proyecto para consumir datos pacientes alojados en la base de datos del proyecto
 ```bash
 git clone https://github.com/JMasr/corilga_api.git
 cd corilga_api
-conda env create -f environment.yml
+conda env create -f env.yml
 pip install -r requirements.txt
 nano .env.keycloak # Adding the keycloak credentials
 ```
