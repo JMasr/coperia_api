@@ -8,6 +8,14 @@ To address the significant impact of Post-Acute Sequelae of SARS-CoV-2 (PASC) on
 
 The FHIR-API-Consumer project is designed to facilitate the integration and consumption of medical data through an API that adheres to the FHIR standard. This ensures interoperability and standardized communication across different healthcare systems and applications.
 
+<img title="Patients distribution of the clinical trial" src="/images/subject_distribution.png" alt="Patient distribution of COPERIA project.">
+<p style="text-align: center;">Fig. 1: Patient distribution of the clinical trial</p>
+
+<img title="Recordings distribution of the clinical trial" src="/images/recordings_distribution.png" alt="Recordings distribution of COPERIA project.">
+<p style="text-align: center;">Fig. 2: Recordings distribution of the clinical trial</p>
+
+
+
 ## Features
 * Seamless integration with FHIR-compliant APIs
 * Support for retrieving and managing various FHIR resources
